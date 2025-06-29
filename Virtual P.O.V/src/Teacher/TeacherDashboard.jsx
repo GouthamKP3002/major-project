@@ -1,8 +1,73 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { 
+  collection, 
+  doc, 
+  getDoc, 
+  setDoc
+} from 'firebase/firestore';
+import { db } from '../firebase'; // Adjust import path as needed
 
 const TeacherDashboard = () => {
   const { user, userProfile, logout } = useAuth();
+  const [studentCount, setStudentCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    ensureTeacherCollection();
+    loadStudentCount();
+  }, []);
+
+  // Ensure teacher exists in teachers collection and get student count
+  const ensureTeacherCollection = async () => {
+    try {
+      const teacherRef = doc(db, 'teachers', user.uid);
+      const teacherDoc = await getDoc(teacherRef);
+      
+      if (!teacherDoc.exists()) {
+        // Create teacher document in teachers collection
+        await setDoc(teacherRef, {
+          ...userProfile,
+          students: [],
+          studentCount: 0,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+        setStudentCount(0);
+      } else {
+        const teacherData = teacherDoc.data();
+        setStudentCount(teacherData.studentCount || 0);
+      }
+    } catch (error) {
+      console.error('Error ensuring teacher collection:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadStudentCount = async () => {
+    try {
+      const teacherRef = doc(db, 'teachers', user.uid);
+      const teacherDoc = await getDoc(teacherRef);
+      
+      if (teacherDoc.exists()) {
+        const teacherData = teacherDoc.data();
+        setStudentCount(teacherData.studentCount || 0);
+      }
+    } catch (error) {
+      console.error('Error loading student count:', error);
+    }
+  };
+
+  // Navigate to Student Management page
+  const navigateToStudentManagement = () => {
+    // This would typically use React Router
+    // For now, we'll show how to handle the navigation
+    navigate('/StudentManagement');
+    // window.location.href = '/teacher/manage-students'; // Replace with proper routing
+  };
 
   // Generate avatar based on name
   const generateAvatar = (name) => {
@@ -115,7 +180,10 @@ const TeacherDashboard = () => {
             </div>
 
             {/* Students Card */}
-            <div className="bg-white/80 backdrop-blur-sm overflow-hidden shadow-xl rounded-2xl border border-green-100 hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
+            <div 
+              onClick={navigateToStudentManagement}
+              className="bg-white/80 backdrop-blur-sm overflow-hidden shadow-xl rounded-2xl border border-green-100 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 cursor-pointer"
+            >
               <div className="p-6">
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
@@ -127,29 +195,34 @@ const TeacherDashboard = () => {
                   </div>
                   <div className="ml-5 w-0 flex-1">
                     <dl>
-                      <dt className="text-sm font-semibold text-gray-600 truncate">Total Students</dt>
-                      <dd className="text-2xl font-bold text-gray-900">120</dd>
+                      <dt className="text-sm font-semibold text-gray-600 truncate">My Students</dt>
+                      <dd className="text-2xl font-bold text-gray-900">{loading ? '...' : studentCount}</dd>
                     </dl>
+                  </div>
+                  <div className="ml-2">
+                    <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Classes Card */}
-            <div className="bg-white/80 backdrop-blur-sm overflow-hidden shadow-xl rounded-2xl border border-purple-100 hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
+            <div className="bg-white/80 backdrop-blur-sm overflow-hidden shadow-xl rounded-2xl border border-yellow-100 hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
               <div className="p-6">
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
-                    <div className="h-12 w-12 bg-gradient-to-r from-purple-400 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                    <div className="h-12 w-12 bg-gradient-to-r from-yellow-400 to-orange-600 rounded-xl flex items-center justify-center shadow-lg">
                       <svg className="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                       </svg>
                     </div>
                   </div>
                   <div className="ml-5 w-0 flex-1">
                     <dl>
-                      <dt className="text-sm font-semibold text-gray-600 truncate">Classes Today</dt>
-                      <dd className="text-2xl font-bold text-gray-900">4</dd>
+                      <dt className="text-sm font-semibold text-gray-600 truncate">Active Classes</dt>
+                      <dd className="text-2xl font-bold text-gray-900">{userProfile?.classes?.length || 0}</dd>
                     </dl>
                   </div>
                 </div>
@@ -157,63 +230,23 @@ const TeacherDashboard = () => {
             </div>
 
             {/* Assignments Card */}
-            <div className="bg-white/80 backdrop-blur-sm overflow-hidden shadow-xl rounded-2xl border border-orange-100 hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
+            <div className="bg-white/80 backdrop-blur-sm overflow-hidden shadow-xl rounded-2xl border border-purple-100 hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
               <div className="p-6">
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
-                    <div className="h-12 w-12 bg-gradient-to-r from-orange-400 to-red-500 rounded-xl flex items-center justify-center shadow-lg">
+                    <div className="h-12 w-12 bg-gradient-to-r from-purple-400 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
                       <svg className="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                       </svg>
                     </div>
                   </div>
                   <div className="ml-5 w-0 flex-1">
                     <dl>
                       <dt className="text-sm font-semibold text-gray-600 truncate">Pending Reviews</dt>
-                      <dd className="text-2xl font-bold text-gray-900">8</dd>
+                      <dd className="text-2xl font-bold text-gray-900">12</dd>
                     </dl>
                   </div>
                 </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Subjects Teaching */}
-        <div className="px-4 py-6 sm:px-0">
-          <div className="bg-white/80 backdrop-blur-sm shadow-xl rounded-2xl border border-indigo-100">
-            <div className="px-8 py-8 sm:p-10">
-              <div className="flex items-center mb-6">
-                <div className="h-8 w-8 bg-gradient-to-r from-indigo-400 to-purple-500 rounded-lg flex items-center justify-center mr-3">
-                  <svg className="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                  </svg>
-                </div>
-                <h3 className="text-xl font-bold text-gray-900">Your Teaching Subjects</h3>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {userProfile?.subjects?.map((subject, index) => (
-                  <div key={index} className="bg-gradient-to-br from-indigo-50 to-purple-50 p-6 rounded-xl border-2 border-indigo-100 hover:border-indigo-300 transition-all duration-300 hover:shadow-lg">
-                    <div className="flex items-center mb-3">
-                      <div className="h-10 w-10 bg-gradient-to-r from-indigo-400 to-purple-500 rounded-lg flex items-center justify-center mr-3">
-                        <span className="text-white font-bold text-sm">{subject.charAt(0)}</span>
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-gray-900 text-lg">{subject}</h4>
-                        <p className="text-sm text-indigo-600 font-medium">Active Course</p>
-                      </div>
-                    </div>
-                  </div>
-                )) || (
-                  <div className="col-span-full text-center py-12">
-                    <div className="h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <svg className="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                      </svg>
-                    </div>
-                    <p className="text-gray-500 text-lg">No subjects assigned yet</p>
-                  </div>
-                )}
               </div>
             </div>
           </div>
@@ -222,55 +255,61 @@ const TeacherDashboard = () => {
         {/* Quick Actions */}
         <div className="px-4 py-6 sm:px-0">
           <div className="bg-white/80 backdrop-blur-sm shadow-xl rounded-2xl border border-indigo-100">
-            <div className="px-8 py-8 sm:p-10">
-              <div className="flex items-center mb-6">
-                <div className="h-8 w-8 bg-gradient-to-r from-green-400 to-blue-500 rounded-lg flex items-center justify-center mr-3">
-                  <svg className="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                </div>
-                <h3 className="text-xl font-bold text-gray-900">Quick Actions</h3>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                <button className="bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 p-6 rounded-xl text-center transition-all duration-300 transform hover:scale-105 shadow-lg border-2 border-blue-200 hover:border-blue-300">
-                  <div className="h-12 w-12 bg-gradient-to-r from-blue-400 to-blue-600 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg">
-                    <svg className="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                    </svg>
-                  </div>
-                  <span className="text-sm font-bold text-blue-900">Manage Courses</span>
-                </button>
-
-                <button className="bg-gradient-to-br from-green-50 to-emerald-100 hover:from-green-100 hover:to-emerald-200 p-6 rounded-xl text-center transition-all duration-300 transform hover:scale-105 shadow-lg border-2 border-green-200 hover:border-green-300">
-                  <div className="h-12 w-12 bg-gradient-to-r from-green-400 to-emerald-600 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg">
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-6">Quick Actions</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Manage Students */}
+                <button
+                  onClick={navigateToStudentManagement}
+                  className="flex flex-col items-center p-6 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border-2 border-green-100 hover:border-green-300 transition-all duration-300 transform hover:scale-105"
+                >
+                  <div className="h-12 w-12 bg-gradient-to-r from-green-400 to-emerald-600 rounded-xl flex items-center justify-center mb-3 shadow-lg">
                     <svg className="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
                     </svg>
                   </div>
-                  <span className="text-sm font-bold text-green-900">View Students</span>
+                  <span className="text-sm font-semibold text-gray-900">Manage Students</span>
+                  <span className="text-xs text-gray-500 mt-1">Add or remove students</span>
                 </button>
 
-                <button className="bg-gradient-to-br from-purple-50 to-purple-100 hover:from-purple-100 hover:to-purple-200 p-6 rounded-xl text-center transition-all duration-300 transform hover:scale-105 shadow-lg border-2 border-purple-200 hover:border-purple-300">
-                  <div className="h-12 w-12 bg-gradient-to-r from-purple-400 to-purple-600 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg">
+                {/* Create Assignment */}
+                <button className="flex flex-col items-center p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-100 hover:border-blue-300 transition-all duration-300 transform hover:scale-105">
+                  <div className="h-12 w-12 bg-gradient-to-r from-blue-400 to-indigo-600 rounded-xl flex items-center justify-center mb-3 shadow-lg">
                     <svg className="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                     </svg>
                   </div>
-                  <span className="text-sm font-bold text-purple-900">Create Assignment</span>
+                  <span className="text-sm font-semibold text-gray-900">Create Assignment</span>
+                  <span className="text-xs text-gray-500 mt-1">New task for students</span>
                 </button>
 
-                <button className="bg-gradient-to-br from-orange-50 to-red-100 hover:from-orange-100 hover:to-red-200 p-6 rounded-xl text-center transition-all duration-300 transform hover:scale-105 shadow-lg border-2 border-orange-200 hover:border-red-300">
-                  <div className="h-12 w-12 bg-gradient-to-r from-orange-400 to-red-500 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg">
+                {/* Grade Submissions */}
+                <button className="flex flex-col items-center p-6 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl border-2 border-purple-100 hover:border-purple-300 transition-all duration-300 transform hover:scale-105">
+                  <div className="h-12 w-12 bg-gradient-to-r from-purple-400 to-pink-600 rounded-xl flex items-center justify-center mb-3 shadow-lg">
                     <svg className="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2-2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                     </svg>
                   </div>
-                  <span className="text-sm font-bold text-red-900">Grade Assignments</span>
+                  <span className="text-sm font-semibold text-gray-900">Grade Work</span>
+                  <span className="text-xs text-gray-500 mt-1">Review submissions</span>
+                </button>
+
+                {/* View Reports */}
+                <button className="flex flex-col items-center p-6 bg-gradient-to-br from-yellow-50 to-orange-50 rounded-xl border-2 border-yellow-100 hover:border-yellow-300 transition-all duration-300 transform hover:scale-105">
+                  <div className="h-12 w-12 bg-gradient-to-r from-yellow-400 to-orange-600 rounded-xl flex items-center justify-center mb-3 shadow-lg">
+                    <svg className="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                  </div>
+                  <span className="text-sm font-semibold text-gray-900">View Reports</span>
+                  <span className="text-xs text-gray-500 mt-1">Student analytics</span>
                 </button>
               </div>
             </div>
           </div>
         </div>
+
+        
       </main>
     </div>
   );

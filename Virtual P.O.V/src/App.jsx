@@ -7,6 +7,7 @@ import StudentProfile from './Student/StudentProfile';
 import TeacherProfile from './Teacher/TeacherProfile';
 import StudentDashboard from './Student/StudentDashboard';
 import TeacherDashboard from './Teacher/TeacherDashboard';
+import StudentManagement from './Teacher/StudentManagment';
 // Import your lab components
 import FirstPucPcmbLabs from './LabPages/FirstPucPcmbLabs';
 import SecondPucPcmbLabs from './LabPages/SecondPucPcmbLabs';
@@ -228,6 +229,15 @@ const AppContent = () => {
           element={
             <ProtectedRoute requiresAuth={true} requiresRole="student" requiresProfile={true}>
               <FirstPucPcmcLabs />
+            </ProtectedRoute>
+          } 
+        />
+
+        <Route 
+          path="/StudentManagement" 
+          element={
+            <ProtectedRoute requiresAuth={true} requiresRole="student" requiresProfile={true}>
+              <StudentManagement/>
             </ProtectedRoute>
           } 
         />
