@@ -11,7 +11,7 @@ const StudentProfile = () => {
     usn: '',
     class: '',
     phoneNumber: '',
-    dateOfBirth: ''
+    dateOfBirth: '',
   });
 
   const handleInputChange = (e) => {
@@ -33,7 +33,9 @@ const StudentProfile = () => {
         email: user.email,
         photoURL: user.photoURL,
         createdAt: new Date(),
-        uid: user.uid
+        uid: user.uid,
+        Enrolled_labs: [], // Initialize as empty array
+        Pending_Assignments: 0 // Initialize as 0
       };
 
       await setDoc(doc(db, 'users', user.uid), profileData);
@@ -225,29 +227,6 @@ const StudentProfile = () => {
                     <option value="2nd PUC PCMC">PCMC 2nd year</option>
                   </select>
                 </div>
-
-                {/* <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700 flex items-center">
-                    <span className="mr-2">🔬</span>
-                    Department *
-                  </label>
-                  <select
-                    name="department"
-                    value={formData.department}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-purple-200 focus:border-purple-500 transition-all duration-300 bg-white shadow-sm hover:shadow-md appearance-none cursor-pointer"
-                  >
-                    <option value="">Select Department</option>
-                    <option value="CSE">Computer Science Engineering</option>
-                    <option value="ISE">Information Science Engineering</option>
-                    <option value="ECE">Electronics & Communication</option>
-                    <option value="EEE">Electrical & Electronics</option>
-                    <option value="ME">Mechanical Engineering</option>
-                    <option value="CE">Civil Engineering</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div> */}
               </div>
             </div>
 

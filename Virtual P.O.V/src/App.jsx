@@ -13,6 +13,7 @@ import FirstPucPcmbLabs from './LabPages/FirstPucPcmbLabs';
 import SecondPucPcmbLabs from './LabPages/SecondPucPcmbLabs';
 import FirstPucPcmcLabs from './LabPages/FirstPucPcmcLabs';
 import SecondPucPcmcLabs from './LabPages/SecondPucPcmcLabs'; // Fixed typo: removed extra space
+import OhmsLawExperiment from './Student/ohms-law-experiment'; // Import the Ohm's Law Experiment component
 
 // Debug component to see auth state
 const DebugAuthState = () => {
@@ -250,7 +251,14 @@ const AppContent = () => {
             </ProtectedRoute>
           } 
         />
-        
+        <Route
+          path="/ohms-law-experiment"
+          element={
+            <ProtectedRoute requiresAuth={true} requiresRole="student" requiresProfile={true}>
+              <OhmsLawExperiment />
+            </ProtectedRoute>
+          }
+        />
         {/* Default Route with better logic */}
         <Route 
           path="/" 
