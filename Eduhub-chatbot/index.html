@@ -2,78 +2,86 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>EduHub Assistant</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            padding: 10px;
+            padding: 0;
+            overflow: hidden;
         }
 
         .chatbot-container {
             width: 100%;
             max-width: 450px;
-            height: 90vh;
-            max-height: 700px;
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            height: 100vh;
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 0;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.1);
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            backdrop-filter: blur(10px);
+            backdrop-filter: blur(20px);
+            position: relative;
         }
 
         .chat-header {
             background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
             color: white;
-            padding: 20px;
+            padding: max(env(safe-area-inset-top), 20px) 20px 20px;
             text-align: center;
             position: relative;
+            box-shadow: 0 2px 20px rgba(79, 172, 254, 0.3);
         }
 
         .chat-header h1 {
-            font-size: 1.5rem;
-            margin-bottom: 5px;
-            font-weight: 600;
+            font-size: clamp(1.3rem, 4vw, 1.6rem);
+            margin-bottom: 8px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
         }
 
         .chat-header p {
-            font-size: 0.9rem;
-            opacity: 0.9;
+            font-size: clamp(0.85rem, 3vw, 0.95rem);
+            opacity: 0.95;
+            font-weight: 500;
         }
 
         .developed-by {
             position: absolute;
-            bottom: 5px;
-            right: 10px;
-            font-size: 0.7rem;
-            opacity: 0.8;
+            bottom: 8px;
+            right: 15px;
+            font-size: clamp(0.65rem, 2.5vw, 0.75rem);
+            opacity: 0.9;
+            font-weight: 600;
         }
 
         .chat-messages {
             flex: 1;
             overflow-y: auto;
-            padding: 20px;
-            background: #f8f9fa;
+            padding: 15px;
+            background: linear-gradient(to bottom, #f8f9fa 0%, #ffffff 100%);
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
         }
 
         .message {
-            margin-bottom: 15px;
+            margin-bottom: 16px;
             display: flex;
             align-items: flex-start;
-            animation: fadeIn 0.3s ease-in;
+            animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .message.user {
@@ -81,53 +89,67 @@
         }
 
         .message-content {
-            max-width: 80%;
-            padding: 12px 16px;
-            border-radius: 18px;
+            max-width: min(85%, 320px);
+            padding: 14px 18px;
+            border-radius: 20px;
             word-wrap: break-word;
+            line-height: 1.5;
+            font-size: clamp(0.9rem, 3.5vw, 1rem);
+            position: relative;
         }
 
         .message.bot .message-content {
             background: #ffffff;
-            color: #333;
-            border: 1px solid #e0e0e0;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            color: #2c3e50;
+            border: 1px solid rgba(79, 172, 254, 0.1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            border-bottom-left-radius: 8px;
         }
 
         .message.user .message-content {
             background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
             color: white;
+            border-bottom-right-radius: 8px;
+            box-shadow: 0 4px 12px rgba(79, 172, 254, 0.3);
         }
 
         .chat-input-container {
-            padding: 20px;
-            background: white;
-            border-top: 1px solid #e0e0e0;
+            padding: 15px;
+            padding-bottom: max(env(safe-area-inset-bottom), 15px);
+            background: rgba(255, 255, 255, 0.98);
+            border-top: 1px solid rgba(79, 172, 254, 0.1);
+            backdrop-filter: blur(20px);
         }
 
         .input-group {
             display: flex;
-            gap: 10px;
-            margin-bottom: 10px;
+            gap: 12px;
+            margin-bottom: 12px;
+            align-items: flex-end;
         }
 
         .chat-input {
             flex: 1;
-            padding: 12px 16px;
-            border: 2px solid #e0e0e0;
+            padding: 14px 18px;
+            border: 2px solid rgba(79, 172, 254, 0.2);
             border-radius: 25px;
             outline: none;
-            font-size: 1rem;
-            transition: border-color 0.3s;
+            font-size: clamp(0.9rem, 4vw, 1rem);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: rgba(255, 255, 255, 0.9);
+            min-height: 48px;
+            resize: none;
         }
 
         .chat-input:focus {
             border-color: #4facfe;
+            box-shadow: 0 0 0 4px rgba(79, 172, 254, 0.1);
+            background: white;
         }
 
         .send-btn, .image-btn {
-            width: 45px;
-            height: 45px;
+            width: 48px;
+            height: 48px;
             border: none;
             border-radius: 50%;
             background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
@@ -136,11 +158,19 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: transform 0.2s;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: 1.2rem;
+            box-shadow: 0 4px 12px rgba(79, 172, 254, 0.3);
+            touch-action: manipulation;
+        }
+
+        .send-btn:active, .image-btn:active {
+            transform: scale(0.95);
         }
 
         .send-btn:hover, .image-btn:hover {
             transform: scale(1.05);
+            box-shadow: 0 6px 16px rgba(79, 172, 254, 0.4);
         }
 
         .image-upload {
@@ -148,48 +178,92 @@
         }
 
         .image-preview {
-            max-width: 100px;
-            max-height: 100px;
-            border-radius: 8px;
-            margin-top: 10px;
+            max-width: 120px;
+            max-height: 120px;
+            border-radius: 12px;
+            margin-top: 12px;
             cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
 
         .loading {
             display: none;
             text-align: center;
-            padding: 10px;
+            padding: 12px;
             color: #666;
+            font-style: italic;
         }
 
         .typing-indicator {
             display: none;
-            padding: 10px;
-            color: #666;
+            padding: 12px;
+            color: #4facfe;
             font-style: italic;
+            font-weight: 500;
         }
 
         .quick-buttons {
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+            -webkit-overflow-scrolling: touch;
         }
 
         .quick-btn {
-            padding: 8px 12px;
-            background: #f0f0f0;
-            border: 1px solid #ddd;
-            border-radius: 15px;
+            padding: 10px 16px;
+            background: rgba(79, 172, 254, 0.1);
+            border: 1px solid rgba(79, 172, 254, 0.2);
+            border-radius: 20px;
             cursor: pointer;
-            font-size: 0.8rem;
-            transition: all 0.3s;
+            font-size: clamp(0.8rem, 3vw, 0.85rem);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            white-space: nowrap;
+            font-weight: 500;
+            touch-action: manipulation;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+        }
+
+        .quick-btn:active {
+            transform: scale(0.98);
         }
 
         .quick-btn:hover {
-            background: #4facfe;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
             color: white;
-            border-color: #4facfe;
+            border-color: transparent;
+            box-shadow: 0 4px 12px rgba(79, 172, 254, 0.3);
+        }
+
+        /* Enhanced Team P.O.V highlighting */
+        .team-highlight {
+            background: linear-gradient(45deg, #4facfe, #00f2fe, #667eea, #764ba2);
+            background-size: 300% 300%;
+            animation: teamGlow 4s ease-in-out infinite;
+            color: white;
+            font-weight: 700;
+            padding: 4px 8px;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(79, 172, 254, 0.4);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+            letter-spacing: 0.5px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .team-highlight::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            animation: shimmer 3s infinite;
         }
 
         /* Image annotation modal */
@@ -200,97 +274,219 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.8);
+            background: rgba(0, 0, 0, 0.9);
             z-index: 1000;
             justify-content: center;
             align-items: center;
+            backdrop-filter: blur(10px);
         }
 
         .annotation-container {
             background: white;
-            border-radius: 15px;
+            border-radius: 20px;
             padding: 20px;
-            max-width: 90%;
-            max-height: 90%;
+            max-width: 95%;
+            max-height: 95%;
             position: relative;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
         }
 
         .annotation-canvas {
             border: 2px solid #4facfe;
-            border-radius: 10px;
+            border-radius: 12px;
             cursor: crosshair;
+            max-width: 100%;
+            max-height: calc(100vh - 200px);
         }
 
         .annotation-tools {
             display: flex;
-            gap: 10px;
+            gap: 8px;
             margin-bottom: 15px;
             flex-wrap: wrap;
+            overflow-x: auto;
+            padding-bottom: 8px;
         }
 
         .tool-btn {
-            padding: 8px 12px;
+            padding: 12px 16px;
             border: 2px solid #4facfe;
             background: white;
-            border-radius: 8px;
+            border-radius: 12px;
             cursor: pointer;
             color: #333;
-            transition: all 0.3s;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: clamp(0.8rem, 3vw, 0.9rem);
+            white-space: nowrap;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            touch-action: manipulation;
         }
 
         .tool-btn.active, .tool-btn:hover {
             background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
             color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(79, 172, 254, 0.3);
         }
 
         .close-annotation {
             position: absolute;
-            top: 10px;
-            right: 15px;
-            background: #4facfe;
+            top: 15px;
+            right: 20px;
+            background: #ff4757;
             color: white;
             border: none;
             border-radius: 50%;
-            width: 30px;
-            height: 30px;
+            width: 40px;
+            height: 40px;
             cursor: pointer;
-            font-size: 18px;
+            font-size: 20px;
+            transition: all 0.3s;
+            touch-action: manipulation;
         }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+        .close-annotation:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(255, 71, 87, 0.3);
         }
 
-        @keyframes pulse {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
+        /* Animations */
+        @keyframes slideIn {
+            from { 
+                opacity: 0; 
+                transform: translateY(20px) scale(0.95); 
+            }
+            to { 
+                opacity: 1; 
+                transform: translateY(0) scale(1); 
+            }
         }
 
-        .team-highlight {
-            background: linear-gradient(45deg, #4facfe, #00f2fe, #667eea);
-            background-size: 200% 200%;
-            animation: pulse 3s ease infinite;
-            color: white;
-            font-weight: bold;
-            padding: 2px 4px;
-            border-radius: 4px;
+        @keyframes teamGlow {
+            0%, 100% { 
+                background-position: 0% 50%; 
+                transform: scale(1);
+            }
+            50% { 
+                background-position: 100% 50%; 
+                transform: scale(1.05);
+            }
         }
 
-        @media (max-width: 500px) {
+        @keyframes shimmer {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        /* Desktop styles */
+        @media (min-width: 768px) {
+            body {
+                padding: 20px;
+            }
+            
             .chatbot-container {
-                height: 100vh;
-                max-height: 100vh;
-                border-radius: 0;
+                max-width: 450px;
+                height: 90vh;
+                max-height: 700px;
+                border-radius: 20px;
+            }
+            
+            .chat-header {
+                border-radius: 20px 20px 0 0;
+                padding: 25px 20px 20px;
+            }
+        }
+
+        /* Small mobile devices */
+        @media (max-width: 375px) {
+            .input-group {
+                gap: 8px;
+            }
+            
+            .send-btn, .image-btn {
+                width: 44px;
+                height: 44px;
+                font-size: 1.1rem;
+            }
+            
+            .chat-input {
+                padding: 12px 16px;
+                min-height: 44px;
+            }
+            
+            .quick-btn {
+                padding: 8px 12px;
+                min-height: 40px;
+            }
+        }
+
+        /* Landscape mode on mobile */
+        @media (max-height: 500px) and (orientation: landscape) {
+            .chat-header {
+                padding: 15px 20px 15px;
             }
             
             .chat-header h1 {
-                font-size: 1.3rem;
+                font-size: 1.2rem;
+                margin-bottom: 4px;
             }
             
-            .message-content {
-                max-width: 85%;
+            .chat-header p {
+                font-size: 0.8rem;
+            }
+            
+            .developed-by {
+                font-size: 0.6rem;
+            }
+        }
+
+        /* Dark mode support */
+        @media (prefers-color-scheme: dark) {
+            .message.bot .message-content {
+                background: rgba(255, 255, 255, 0.95);
+                border-color: rgba(79, 172, 254, 0.2);
+            }
+        }
+
+        /* Accessibility improvements */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        /* Focus styles for keyboard navigation */
+        .quick-btn:focus,
+        .send-btn:focus,
+        .image-btn:focus,
+        .tool-btn:focus {
+            outline: 2px solid #4facfe;
+            outline-offset: 2px;
+        }
+
+        .chat-input:focus {
+            outline: none;
+        }
+
+        /* Touch improvements */
+        @media (hover: none) and (pointer: coarse) {
+            .quick-btn:hover,
+            .send-btn:hover,
+            .image-btn:hover,
+            .tool-btn:hover {
+                transform: none;
+            }
+            
+            .quick-btn:active,
+            .send-btn:active,
+            .image-btn:active,
+            .tool-btn:active {
+                transform: scale(0.95);
+                opacity: 0.8;
             }
         }
     </style>
@@ -324,9 +520,9 @@
             </div>
             
             <div class="input-group">
-                <input type="text" class="chat-input" id="chatInput" placeholder="Ask me anything..." onkeypress="handleKeyPress(event)">
-                <button class="image-btn" onclick="document.getElementById('imageUpload').click()">🖼️</button>
-                <button class="send-btn" onclick="sendMessage()">🚀</button>
+                <textarea class="chat-input" id="chatInput" placeholder="Ask me anything..." rows="1" style="resize: none; overflow: hidden;"></textarea>
+                <button class="image-btn" onclick="document.getElementById('imageUpload').click()" aria-label="Upload image">🖼️</button>
+                <button class="send-btn" onclick="sendMessage()" aria-label="Send message">🚀</button>
             </div>
             
             <input type="file" id="imageUpload" class="image-upload" accept="image/*" onchange="handleImageUpload(event)">
@@ -340,7 +536,7 @@
     <!-- Image Annotation Modal -->
     <div id="annotationModal" class="annotation-modal">
         <div class="annotation-container">
-            <button class="close-annotation" onclick="closeAnnotation()">×</button>
+            <button class="close-annotation" onclick="closeAnnotation()" aria-label="Close annotation">×</button>
             <div class="annotation-tools">
                 <button class="tool-btn active" onclick="setTool('pen')" id="penTool">✏️ Pen</button>
                 <button class="tool-btn" onclick="setTool('highlighter')" id="highlighterTool">🖍️ Highlighter</button>
@@ -361,6 +557,23 @@
         let currentColor = '#4facfe';
         let canvas, ctx;
 
+        // Auto-resize textarea
+        function autoResize() {
+            const textarea = document.getElementById('chatInput');
+            textarea.style.height = 'auto';
+            textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+        }
+
+        // Enhanced touch support for drawing
+        function getTouchPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const touch = e.touches[0] || e.changedTouches[0];
+            return {
+                x: touch.clientX - rect.left,
+                y: touch.clientY - rect.top
+            };
+        }
+
         // Hardcoded responses for EduHub-specific questions
         const hardcodedResponses = {
             'what is eduhub': 'EduHub is a comprehensive web platform for laboratory simulation experiments designed specifically for 11th and 12th grade students. Our platform provides interactive virtual lab experiences to enhance science education! 🧪✨',
@@ -378,7 +591,7 @@
             messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
             
             if (isImage && isUser) {
-                messageDiv.innerHTML = `<div class="message-content"><img src="${content}" style="max-width: 200px; border-radius: 8px;"></div>`;
+                messageDiv.innerHTML = `<div class="message-content"><img src="${content}" style="max-width: 200px; border-radius: 12px;"></div>`;
             } else {
                 messageDiv.innerHTML = `<div class="message-content">${content}</div>`;
             }
@@ -464,6 +677,7 @@
             }
 
             input.value = '';
+            input.style.height = 'auto';
             showTyping();
 
             // Check for hardcoded responses first
@@ -492,7 +706,8 @@
         }
 
         function handleKeyPress(event) {
-            if (event.key === 'Enter') {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
                 sendMessage();
             }
         }
@@ -515,9 +730,24 @@
             
             const img = new Image();
             img.onload = function() {
-                canvas.width = Math.min(img.width, 600);
-                canvas.height = (canvas.width / img.width) * img.height;
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                const maxWidth = Math.min(window.innerWidth * 0.9, 600);
+                const maxHeight = window.innerHeight * 0.7;
+                
+                let { width, height } = img;
+                
+                if (width > maxWidth) {
+                    height = (height * maxWidth) / width;
+                    width = maxWidth;
+                }
+                
+                if (height > maxHeight) {
+                    width = (width * maxHeight) / height;
+                    height = maxHeight;
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                ctx.drawImage(img, 0, 0, width, height);
             };
             img.src = imageData;
             
@@ -526,10 +756,38 @@
         }
 
         function setupCanvasEvents() {
+            // Mouse events
             canvas.addEventListener('mousedown', startDrawing);
             canvas.addEventListener('mousemove', draw);
             canvas.addEventListener('mouseup', stopDrawing);
             canvas.addEventListener('mouseout', stopDrawing);
+            
+            // Touch events
+            canvas.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                const touch = e.touches[0];
+                const mouseEvent = new MouseEvent('mousedown', {
+                    clientX: touch.clientX,
+                    clientY: touch.clientY
+                });
+                canvas.dispatchEvent(mouseEvent);
+            });
+            
+            canvas.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                const touch = e.touches[0];
+                const mouseEvent = new MouseEvent('mousemove', {
+                    clientX: touch.clientX,
+                    clientY: touch.clientY
+                });
+                canvas.dispatchEvent(mouseEvent);
+            });
+            
+            canvas.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                const mouseEvent = new MouseEvent('mouseup', {});
+                canvas.dispatchEvent(mouseEvent);
+            });
         }
 
         function startDrawing(e) {
@@ -599,7 +857,97 @@
 
         // Initialize chat
         document.addEventListener('DOMContentLoaded', function() {
-            document.getElementById('chatInput').focus();
+            const chatInput = document.getElementById('chatInput');
+            
+            // Focus input on load
+            chatInput.focus();
+            
+            // Auto-resize textarea on input
+            chatInput.addEventListener('input', autoResize);
+            
+            // Handle Enter key
+            chatInput.addEventListener('keydown', handleKeyPress);
+            
+            // Prevent zoom on input focus (iOS)
+            chatInput.addEventListener('focus', function() {
+                if (window.innerWidth < 768) {
+                    document.querySelector('meta[name="viewport"]').setAttribute('content', 
+                        'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+                }
+            });
+            
+            chatInput.addEventListener('blur', function() {
+                if (window.innerWidth < 768) {
+                    document.querySelector('meta[name="viewport"]').setAttribute('content', 
+                        'width=device-width, initial-scale=1.0, user-scalable=no');
+                }
+            });
+            
+            // Handle orientation change
+            window.addEventListener('orientationchange', function() {
+                setTimeout(() => {
+                    const messagesContainer = document.getElementById('chatMessages');
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                }, 100);
+            });
+            
+            // Handle window resize
+            window.addEventListener('resize', function() {
+                const messagesContainer = document.getElementById('chatMessages');
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            });
+            
+            // Smooth scroll to bottom when new messages are added
+            const observer = new MutationObserver(function() {
+                const messagesContainer = document.getElementById('chatMessages');
+                messagesContainer.scrollTo({
+                    top: messagesContainer.scrollHeight,
+                    behavior: 'smooth'
+                });
+            });
+            
+            observer.observe(document.getElementById('chatMessages'), {
+                childList: true
+            });
+            
+            // Prevent pull-to-refresh on mobile
+            document.body.addEventListener('touchstart', function(e) {
+                if (e.touches.length === 1 && window.scrollY === 0) {
+                    e.preventDefault();
+                }
+            }, { passive: false });
+            
+            document.body.addEventListener('touchmove', function(e) {
+                if (e.touches.length === 1 && window.scrollY === 0) {
+                    e.preventDefault();
+                }
+            }, { passive: false });
+        });
+
+        // Service Worker registration for PWA capabilities (optional)
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                // Register service worker if available
+                console.log('PWA ready');
+            });
+        }
+
+        // Handle network status
+        window.addEventListener('online', function() {
+            console.log('Network connection restored');
+        });
+
+        window.addEventListener('offline', function() {
+            addMessage('🔌 You appear to be offline. Some features may not work properly.', false);
+        });
+
+        // Enhanced error handling
+        window.addEventListener('error', function(e) {
+            console.error('Global error:', e.error);
+        });
+
+        window.addEventListener('unhandledrejection', function(e) {
+            console.error('Unhandled promise rejection:', e.reason);
         });
     </script>
 </body>
