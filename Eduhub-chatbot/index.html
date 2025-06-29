@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduHub Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+        }
+
+        .chatbot-container {
+            width: 100%;
+            max-width: 450px;
+            height: 90vh;
+            max-height: 700px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+
+        .chat-header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+        }
+
+        .chat-header h1 {
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        .chat-header p {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .developed-by {
+            position: absolute;
+            bottom: 5px;
+            right: 10px;
+            font-size: 0.7rem;
+            opacity: 0.8;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: flex-start;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message-content {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            word-wrap: break-word;
+        }
+
+        .message.bot .message-content {
+            background: #ffffff;
+            color: #333;
+            border: 1px solid #e0e0e0;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .message.user .message-content {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+
+        .chat-input-container {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            outline: none;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        .chat-input:focus {
+            border-color: #4facfe;
+        }
+
+        .send-btn, .image-btn {
+            width: 45px;
+            height: 45px;
+            border: none;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s;
+        }
+
+        .send-btn:hover, .image-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .image-upload {
+            display: none;
+        }
+
+        .image-preview {
+            max-width: 100px;
+            max-height: 100px;
+            border-radius: 8px;
+            margin-top: 10px;
+            cursor: pointer;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 10px;
+            color: #666;
+        }
+
+        .typing-indicator {
+            display: none;
+            padding: 10px;
+            color: #666;
+            font-style: italic;
+        }
+
+        .quick-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .quick-btn {
+            padding: 8px 12px;
+            background: #f0f0f0;
+            border: 1px solid #ddd;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.3s;
+        }
+
+        .quick-btn:hover {
+            background: #4facfe;
+            color: white;
+            border-color: #4facfe;
+        }
+
+        /* Image annotation modal */
+        .annotation-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .annotation-container {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            max-width: 90%;
+            max-height: 90%;
+            position: relative;
+        }
+
+        .annotation-canvas {
+            border: 2px solid #4facfe;
+            border-radius: 10px;
+            cursor: crosshair;
+        }
+
+        .annotation-tools {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .tool-btn {
+            padding: 8px 12px;
+            border: 2px solid #4facfe;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            color: #333;
+            transition: all 0.3s;
+        }
+
+        .tool-btn.active, .tool-btn:hover {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+
+        .close-annotation {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            background: #4facfe;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            font-size: 18px;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes pulse {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .team-highlight {
+            background: linear-gradient(45deg, #4facfe, #00f2fe, #667eea);
+            background-size: 200% 200%;
+            animation: pulse 3s ease infinite;
+            color: white;
+            font-weight: bold;
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+
+        @media (max-width: 500px) {
+            .chatbot-container {
+                height: 100vh;
+                max-height: 100vh;
+                border-radius: 0;
+            }
+            
+            .chat-header h1 {
+                font-size: 1.3rem;
+            }
+            
+            .message-content {
+                max-width: 85%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="chatbot-container">
+        <div class="chat-header">
+            <h1>🧪 EduHub Assistant</h1>
+            <p>Your Lab Simulation Guide</p>
+            <div class="developed-by">by <span class="team-highlight">Team P.O.V</span></div>
+        </div>
+        
+        <div class="chat-messages" id="chatMessages">
+            <div class="message bot">
+                <div class="message-content">
+                    Welcome to EduHub! 🎓 I'm your virtual lab assistant for 11th & 12th grade science experiments. I can help you with:
+                    <br>• Lab simulation guidance
+                    <br>• Answer questions about EduHub
+                    <br>• Solve logical & brain teasers
+                    <br>• Analyze images and diagrams
+                    <br><br>How can I help you today?
+                </div>
+            </div>
+        </div>
+        
+        <div class="chat-input-container">
+            <div class="quick-buttons">
+                <button class="quick-btn" onclick="sendQuickMessage('What is EduHub?')">What is EduHub? 🤔</button>
+                <button class="quick-btn" onclick="sendQuickMessage('Contact info')">Contact 📧</button>
+                <button class="quick-btn" onclick="sendQuickMessage('Lab experiments')">Lab Experiments 🔬</button>
+            </div>
+            
+            <div class="input-group">
+                <input type="text" class="chat-input" id="chatInput" placeholder="Ask me anything..." onkeypress="handleKeyPress(event)">
+                <button class="image-btn" onclick="document.getElementById('imageUpload').click()">🖼️</button>
+                <button class="send-btn" onclick="sendMessage()">🚀</button>
+            </div>
+            
+            <input type="file" id="imageUpload" class="image-upload" accept="image/*" onchange="handleImageUpload(event)">
+            <div id="imagePreview"></div>
+            
+            <div class="loading" id="loading">🤔 Thinking...</div>
+            <div class="typing-indicator" id="typingIndicator">Assistant is typing...</div>
+        </div>
+    </div>
+
+    <!-- Image Annotation Modal -->
+    <div id="annotationModal" class="annotation-modal">
+        <div class="annotation-container">
+            <button class="close-annotation" onclick="closeAnnotation()">×</button>
+            <div class="annotation-tools">
+                <button class="tool-btn active" onclick="setTool('pen')" id="penTool">✏️ Pen</button>
+                <button class="tool-btn" onclick="setTool('highlighter')" id="highlighterTool">🖍️ Highlighter</button>
+                <button class="tool-btn" onclick="setTool('eraser')" id="eraserTool">🧽 Eraser</button>
+                <input type="color" id="colorPicker" value="#4facfe" onchange="setColor(this.value)">
+                <button class="tool-btn" onclick="clearCanvas()">🗑️ Clear</button>
+                <button class="tool-btn" onclick="saveAnnotation()" style="background: linear-gradient(135deg, #00b894 0%, #00a085 100%); color: white;">✅ Done</button>
+            </div>
+            <canvas id="annotationCanvas" class="annotation-canvas"></canvas>
+        </div>
+    </div>
+
+    <script>
+        const API_KEY = 'AIzaSyCFqQwXMbpFW7fNmgsfFVzXR6PVNeUyk1Y';
+        let currentImage = null;
+        let isDrawing = false;
+        let currentTool = 'pen';
+        let currentColor = '#4facfe';
+        let canvas, ctx;
+
+        // Hardcoded responses for EduHub-specific questions
+        const hardcodedResponses = {
+            'what is eduhub': 'EduHub is a comprehensive web platform for laboratory simulation experiments designed specifically for 11th and 12th grade students. Our platform provides interactive virtual lab experiences to enhance science education! 🧪✨',
+            'what does eduhub do': 'EduHub provides virtual laboratory simulation experiences for high school students (grades 11-12). We offer interactive experiments, educational content, and hands-on learning tools to make science education more engaging and accessible! 📚🔬',
+            'who developed eduhub': 'EduHub was developed by the talented <span class="team-highlight">Team P.O.V</span>:\n• <strong>Rohith Krishna</strong> 👨‍💻\n• <strong>Goutham K P</strong> 👨‍💻\n• <strong>Srichirajaya</strong> 👩‍💻\n\nIt\'s a collaborative effort to revolutionize science education! 🚀',
+            'contact': 'You can reach the <span class="team-highlight">Team P.O.V</span> at: <strong>teampov@gmail.com</strong> 📧\n\n<strong>Team Members:</strong>\n• Rohith Krishna\n• Goutham K P\n• Srichirajaya\n\nFeel free to contact us for any questions, suggestions, or collaboration opportunities! 🤝',
+            'contact info': 'You can reach the <span class="team-highlight">Team P.O.V</span> at: <strong>teampov@gmail.com</strong> 📧\n\n<strong>Team Members:</strong>\n• Rohith Krishna\n• Goutham K P\n• Srichirajaya\n\nFeel free to contact us for any questions, suggestions, or collaboration opportunities! 🤝',
+            'team': 'EduHub is proudly developed by <span class="team-highlight">Team P.O.V</span>:\n• <strong>Rohith Krishna</strong> 👨‍💻\n• <strong>Goutham K P</strong> 👨‍💻\n• <strong>Srichirajaya</strong> 👩‍💻\n\nContact us: <strong>teampov@gmail.com</strong> 🚀',
+            'lab experiments': 'EduHub offers virtual simulations for various science experiments including:\n• Physics experiments (mechanics, optics, electricity) ⚡\n• Chemistry lab simulations (reactions, titrations, organic chemistry) 🧪\n• Biology practicals (microscopy, dissection, cell studies) 🔬\n\nAll designed specifically for 11th & 12th grade curriculum! 📊'
+        };
+
+        function addMessage(content, isUser = false, isImage = false) {
+            const messagesContainer = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
+            
+            if (isImage && isUser) {
+                messageDiv.innerHTML = `<div class="message-content"><img src="${content}" style="max-width: 200px; border-radius: 8px;"></div>`;
+            } else {
+                messageDiv.innerHTML = `<div class="message-content">${content}</div>`;
+            }
+            
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function showTyping() {
+            document.getElementById('typingIndicator').style.display = 'block';
+        }
+
+        function hideTyping() {
+            document.getElementById('typingIndicator').style.display = 'none';
+        }
+
+        function checkHardcodedResponse(message) {
+            const normalizedMessage = message.toLowerCase().trim();
+            
+            for (const [key, response] of Object.entries(hardcodedResponses)) {
+                if (normalizedMessage.includes(key)) {
+                    return response;
+                }
+            }
+            return null;
+        }
+
+        async function sendToGemini(message, imageData = null) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+            
+            let parts = [{ text: message }];
+            
+            if (imageData) {
+                parts.push({
+                    inline_data: {
+                        mime_type: "image/jpeg",
+                        data: imageData.split(',')[1]
+                    }
+                });
+            }
+
+            const requestBody = {
+                contents: [{
+                    parts: parts
+                }]
+            };
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                return data.candidates[0].content.parts[0].text;
+            } catch (error) {
+                console.error('Error calling Gemini API:', error);
+                return 'Sorry, I encountered an error while processing your request. Please try again! 😅';
+            }
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            
+            if (!message && !currentImage) return;
+
+            // Add user message
+            if (message) {
+                addMessage(message, true);
+            }
+            
+            // Add image if present
+            if (currentImage) {
+                addMessage(currentImage, true, true);
+            }
+
+            input.value = '';
+            showTyping();
+
+            // Check for hardcoded responses first
+            const hardcodedResponse = checkHardcodedResponse(message);
+            
+            if (hardcodedResponse && !currentImage) {
+                hideTyping();
+                setTimeout(() => {
+                    addMessage(hardcodedResponse);
+                }, 500);
+            } else {
+                // Use Gemini API for dynamic responses
+                const response = await sendToGemini(message, currentImage);
+                hideTyping();
+                addMessage(response);
+            }
+
+            // Clear current image
+            currentImage = null;
+            document.getElementById('imagePreview').innerHTML = '';
+        }
+
+        function sendQuickMessage(message) {
+            document.getElementById('chatInput').value = message;
+            sendMessage();
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    showAnnotationModal(e.target.result);
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function showAnnotationModal(imageData) {
+            const modal = document.getElementById('annotationModal');
+            canvas = document.getElementById('annotationCanvas');
+            ctx = canvas.getContext('2d');
+            
+            const img = new Image();
+            img.onload = function() {
+                canvas.width = Math.min(img.width, 600);
+                canvas.height = (canvas.width / img.width) * img.height;
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            };
+            img.src = imageData;
+            
+            modal.style.display = 'flex';
+            setupCanvasEvents();
+        }
+
+        function setupCanvasEvents() {
+            canvas.addEventListener('mousedown', startDrawing);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stopDrawing);
+            canvas.addEventListener('mouseout', stopDrawing);
+        }
+
+        function startDrawing(e) {
+            isDrawing = true;
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            ctx.lineTo(x, y);
+            
+            if (currentTool === 'pen') {
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = currentColor;
+            } else if (currentTool === 'highlighter') {
+                ctx.globalCompositeOperation = 'multiply';
+                ctx.lineWidth = 15;
+                ctx.strokeStyle = currentColor + '80';
+            } else if (currentTool === 'eraser') {
+                ctx.globalCompositeOperation = 'destination-out';
+                ctx.lineWidth = 20;
+            }
+            
+            ctx.lineCap = 'round';
+            ctx.stroke();
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+        }
+
+        function setTool(tool) {
+            currentTool = tool;
+            document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(tool + 'Tool').classList.add('active');
+        }
+
+        function setColor(color) {
+            currentColor = color;
+        }
+
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function saveAnnotation() {
+            currentImage = canvas.toDataURL();
+            const preview = document.getElementById('imagePreview');
+            preview.innerHTML = `<img src="${currentImage}" class="image-preview" onclick="showAnnotationModal('${currentImage}')">`;
+            closeAnnotation();
+        }
+
+        function closeAnnotation() {
+            document.getElementById('annotationModal').style.display = 'none';
+        }
+
+        // Initialize chat
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('chatInput').focus();
+        });
+    </script>
+</body>
+</html>
