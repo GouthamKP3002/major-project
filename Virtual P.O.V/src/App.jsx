@@ -9,10 +9,7 @@ import StudentDashboard from './Student/StudentDashboard';
 import TeacherDashboard from './Teacher/TeacherDashboard';
 import StudentManagement from './Teacher/StudentManagment';
 // Import your lab components
-import FirstPucPcmbLabs from './LabPages/FirstPucPcmbLabs';
-import SecondPucPcmbLabs from './LabPages/SecondPucPcmbLabs';
-import FirstPucPcmcLabs from './LabPages/FirstPucPcmcLabs';
-import SecondPucPcmcLabs from './LabPages/SecondPucPcmcLabs'; // Fixed typo: removed extra space
+
 import OhmsLawExperiment from './Student/ohms-law-experiment'; // Import the Ohm's Law Experiment component
 
 // Debug component to see auth state
@@ -207,32 +204,10 @@ const AppContent = () => {
         />
         
         {/* Student Lab Routes */}
-        <Route 
-          path="/labs/1st-puc-pcmb" 
-          element={
-            <ProtectedRoute requiresAuth={true} requiresRole="student" requiresProfile={true}>
-              <FirstPucPcmbLabs />
-            </ProtectedRoute>
-          } 
-        />
+       
+       
         
-        <Route 
-          path="/labs/2nd-puc-pcmb" 
-          element={
-            <ProtectedRoute requiresAuth={true} requiresRole="student" requiresProfile={true}>
-              <SecondPucPcmbLabs />
-            </ProtectedRoute>
-          } 
-        />
-        
-        <Route 
-          path="/labs/1st-puc-pcmc" 
-          element={
-            <ProtectedRoute requiresAuth={true} requiresRole="student" requiresProfile={true}>
-              <FirstPucPcmcLabs />
-            </ProtectedRoute>
-          } 
-        />
+       
 
         <Route 
           path="/StudentManagement" 
@@ -243,14 +218,7 @@ const AppContent = () => {
           } 
         />
         
-        <Route 
-          path="/labs/2nd-puc-pcmc" 
-          element={
-            <ProtectedRoute requiresAuth={true} requiresRole="student" requiresProfile={true}>
-              <SecondPucPcmcLabs />
-            </ProtectedRoute>
-          } 
-        />
+        
         <Route
           path="/ohms-law-experiment"
           element={
