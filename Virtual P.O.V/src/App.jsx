@@ -2,7 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import LoginScreen from './LoginScreen';
 import RoleSelection from './RoleSelection';
-import { AuthProvider, useAuth } from './AuthContext'; 
+import { AuthProvider, useAuth } from './AuthContext';
 import StudentProfile from './Student/StudentProfile';
 import TeacherProfile from './Teacher/TeacherProfile';
 import StudentDashboard from './Student/StudentDashboard';
@@ -12,24 +12,25 @@ import StudentManagement from './Teacher/StudentManagment';
 import FirstPucPcmbLabs from './LabPages/FirstPucPcmbLabs';
 import SecondPucPcmbLabs from './LabPages/SecondPucPcmbLabs';
 import FirstPucPcmcLabs from './LabPages/FirstPucPcmcLabs';
-import SecondPucPcmcLabs from './LabPages/SecondPucPcmcLabs'; // Fixed typo: removed extra space
-import OhmsLawExperiment from './Student/ohms-law-experiment'; // Import the Ohm's Law Experiment component
+import SecondPucPcmcLabs from './LabPages/SecondPucPcmcLabs';
+import OhmsLawExperiment from './Student/ohms-law-experiment'; // Ohm's Law Experiment
+import MagneticHysteresisExperiment from './Student/magnetic-hysteresis-experiment'; // Import the Magnetic Hysteresis Experiment component
+import ClippingClampingExperiment from './Student/clipping-clamping-experiment'; // NEW: Import ClippingClampingExperiment
 
-// Debug component to see auth state
+// Debug component to see auth state (good for development, consider removing in production)
 const DebugAuthState = () => {
   const { user, userRole, userProfile, loading } = useAuth();
-  
-  console.log('Debug Auth State:', { 
-    user: !!user, 
-    userRole, 
-    userProfile: !!userProfile, 
-    loading 
-  });
-  
 
+  console.log('Debug Auth State:', {
+    user: !!user,
+    userRole,
+    userProfile: !!userProfile,
+    loading
+  });
+  return null; // This component renders nothing visually
 };
 
-// Protected Route Component with better debugging
+// Protected Route Component: Centralized logic for authentication, role, and profile checks
 const ProtectedRoute = ({ children, requiresAuth = true, requiresRole = null, requiresProfile = true }) => {
   const { user, userRole, userProfile, loading } = useAuth();
 
@@ -39,10 +40,11 @@ const ProtectedRoute = ({ children, requiresAuth = true, requiresRole = null, re
     userProfile: !!userProfile,
     loading,
     requiresAuth,
-    requiresRole,
+    requiresRole, // Can be true, false, "student", or "teacher"
     requiresProfile
   });
 
+  // Show a loading spinner while authentication state is being determined
   if (loading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
@@ -54,21 +56,29 @@ const ProtectedRoute = ({ children, requiresAuth = true, requiresRole = null, re
     );
   }
 
-  // Check authentication
+  // 1. Check authentication: If authentication is required but user is not logged in
   if (requiresAuth && !user) {
-    console.log('Redirecting to login - no user');
+    console.log('ProtectedRoute: Redirecting to login - user not authenticated.');
     return <Navigate to="/login" replace />;
   }
 
-  // Check role selection - only redirect if we specifically need a role
-  if (requiresRole !== false && !userRole) {
-    console.log('Redirecting to role selection - no role');
+  // 2. Check role existence: If a role is required (either any role or a specific one) but no role is set
+  // `requiresRole` can be `true` (any role needed), or a string ("student", "teacher")
+  if ((requiresRole === true || typeof requiresRole === 'string') && !userRole) {
+    console.log('ProtectedRoute: Redirecting to role selection - role required but not set.');
     return <Navigate to="/role-selection" replace />;
   }
 
-  // Check profile completion
+  // 3. Check specific role match: If a specific role string is required but user's role doesn't match
+  if (typeof requiresRole === 'string' && userRole !== requiresRole) {
+    console.log(`ProtectedRoute: Redirecting to dashboard - required role "${requiresRole}" does not match user's role "${userRole}".`);
+    // Redirect to the appropriate dashboard or a generic unauthorized page
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  // 4. Check profile completion: If a profile is required but not completed
   if (requiresProfile && userRole && !userProfile) {
-    console.log('Redirecting to profile setup - no profile');
+    console.log('ProtectedRoute: Redirecting to profile setup - profile required but not complete.');
     if (userRole === 'student') {
       return <Navigate to="/student-profile" replace />;
     } else if (userRole === 'teacher') {
@@ -76,13 +86,12 @@ const ProtectedRoute = ({ children, requiresAuth = true, requiresRole = null, re
     }
   }
 
-  // Check specific role access
- 
-
-  console.log('ProtectedRoute: Rendering children');
+  // If all checks pass, render the children components
+  console.log('ProtectedRoute: All checks passed. Rendering children.');
   return children;
 };
 
+// AppContent handles all routes within the AuthProvider context
 const AppContent = () => {
   const { user, userRole, userProfile, loading } = useAuth();
 
@@ -93,25 +102,27 @@ const AppContent = () => {
     <>
       {/* Debug component - remove in production */}
       <DebugAuthState />
-      
+
       <Routes>
         {/* Public Routes */}
-        <Route 
-          path="/login" 
+        {/* If user is logged in, redirect from login to dashboard */}
+        <Route
+          path="/login"
           element={
             !user ? <LoginScreen /> : <Navigate to="/dashboard" replace />
-          } 
+          }
         />
-        
+
         {/* Role Selection Route */}
-        <Route 
-          path="/role-selection" 
+        {/* Requires authentication, but no specific role or profile completion yet */}
+        <Route
+          path="/role-selection"
           element={
             <ProtectedRoute requiresAuth={true} requiresRole={false} requiresProfile={false}>
+              {/* If userRole is already set, redirect to profile or dashboard */}
               {!userRole ? (
                 <RoleSelection />
               ) : !userProfile ? (
-                // After role selection, redirect to profile setup
                 userRole === 'student' ? (
                   <Navigate to="/student-profile" replace />
                 ) : (
@@ -121,59 +132,55 @@ const AppContent = () => {
                 <Navigate to="/dashboard" replace />
               )}
             </ProtectedRoute>
-          } 
+          }
         />
-        
+
         {/* Profile Setup Routes */}
-        <Route 
-          path="/student-profile" 
+        {/* These routes allow profile setup if role is chosen but profile isn't complete */}
+        <Route
+          path="/student-profile"
           element={
-            <ProtectedRoute requiresAuth={true} requiresRole={false} requiresProfile={false}>
-              {userRole === 'student' ? (
-                !userProfile ? (
-                  <StudentProfile />
-                ) : (
-                  <Navigate to="/student-dashboard" replace />
-                )
-              ) : (
-                <Navigate to="/role-selection" replace />
+            <ProtectedRoute requiresAuth={true} requiresRole="student" requiresProfile={false}>
+              {/* Only render StudentProfile if user is a student and profile is not complete */}
+              {userRole === 'student' && !userProfile ? (
+                <StudentProfile />
+              ) : ( // If conditions not met (e.g., wrong role or profile already exists), redirect
+                userProfile ? <Navigate to="/student-dashboard" replace /> : <Navigate to="/role-selection" replace />
               )}
             </ProtectedRoute>
-          } 
+          }
         />
-        
-        <Route 
-          path="/teacher-profile" 
+
+        <Route
+          path="/teacher-profile"
           element={
-            <ProtectedRoute requiresAuth={true} requiresRole={false} requiresProfile={false}>
-              {userRole === 'teacher' ? (
-                !userProfile ? (
-                  <TeacherProfile />
-                ) : (
-                  <Navigate to="/teacher-dashboard" replace />
-                )
-              ) : (
-                <Navigate to="/role-selection" replace />
+            <ProtectedRoute requiresAuth={true} requiresRole="teacher" requiresProfile={false}>
+              {/* Only render TeacherProfile if user is a teacher and profile is not complete */}
+              {userRole === 'teacher' && !userProfile ? (
+                <TeacherProfile />
+              ) : ( // If conditions not met, redirect
+                userProfile ? <Navigate to="/teacher-dashboard" replace /> : <Navigate to="/role-selection" replace />
               )}
             </ProtectedRoute>
-          } 
+          }
         />
-        
-        {/* Dashboard Routes - Separate routes for student and teacher */}
-        <Route 
-          path="/dashboard" 
+
+        {/* Dashboard Routes - Redirects to specific dashboard based on userRole */}
+        <Route
+          path="/dashboard"
           element={
             <ProtectedRoute requiresAuth={true} requiresRole={true} requiresProfile={true}>
               {userRole === 'student' ? (
-                <Navigate to="/student-dashboard" replace />
+                <StudentDashboard /> // ProtectedRoute ensures userRole is "student"
               ) : userRole === 'teacher' ? (
-                <Navigate to="/teacher-dashboard" replace />
+                <TeacherDashboard /> // ProtectedRoute ensures userRole is "teacher"
               ) : (
+                // Fallback for unexpected role state, though ProtectedRoute should handle most cases
                 <div className="min-h-screen bg-black flex items-center justify-center">
                   <div className="text-center text-white">
-                    <h2 className="text-xl mb-4">Invalid Role</h2>
-                    <p>Role: {userRole}</p>
-                    <button 
+                    <h2 className="text-xl mb-4">Invalid Role or Role Not Set</h2>
+                    <p>Current Role: {userRole || 'N/A'}</p>
+                    <button
                       onClick={() => window.location.href = '/role-selection'}
                       className="mt-4 px-4 py-2 bg-blue-600 text-white rounded"
                     >
@@ -183,74 +190,79 @@ const AppContent = () => {
                 </div>
               )}
             </ProtectedRoute>
-          } 
+          }
         />
-        
-        {/* Student Dashboard */}
-        <Route 
-          path="/student-dashboard" 
+
+        {/* Specific Dashboard Routes - Protected by role */}
+        <Route
+          path="/student-dashboard"
           element={
             <ProtectedRoute requiresAuth={true} requiresRole="student" requiresProfile={true}>
               <StudentDashboard />
             </ProtectedRoute>
-          } 
+          }
         />
-        
-        {/* Teacher Dashboard */}
-        <Route 
-          path="/teacher-dashboard" 
+
+        <Route
+          path="/teacher-dashboard"
           element={
             <ProtectedRoute requiresAuth={true} requiresRole="teacher" requiresProfile={true}>
               <TeacherDashboard />
             </ProtectedRoute>
-          } 
+          }
         />
-        
+
+        {/* Teacher Specific Routes */}
+        {/* Requires Teacher role */}
+        <Route
+          path="/StudentManagement"
+          element={
+            <ProtectedRoute requiresAuth={true} requiresRole="teacher" requiresProfile={true}>
+              <StudentManagement />
+            </ProtectedRoute>
+          }
+        />
+
+
         {/* Student Lab Routes */}
-        <Route 
-          path="/labs/1st-puc-pcmb" 
+        {/* All lab pages require student role and profile completion */}
+        <Route
+          path="/labs/1st-puc-pcmb"
           element={
             <ProtectedRoute requiresAuth={true} requiresRole="student" requiresProfile={true}>
               <FirstPucPcmbLabs />
             </ProtectedRoute>
-          } 
+          }
         />
-        
-        <Route 
-          path="/labs/2nd-puc-pcmb" 
+
+        <Route
+          path="/labs/2nd-puc-pcmb"
           element={
             <ProtectedRoute requiresAuth={true} requiresRole="student" requiresProfile={true}>
               <SecondPucPcmbLabs />
             </ProtectedRoute>
-          } 
+          }
         />
-        
-        <Route 
-          path="/labs/1st-puc-pcmc" 
+
+        <Route
+          path="/labs/1st-puc-pcmc"
           element={
             <ProtectedRoute requiresAuth={true} requiresRole="student" requiresProfile={true}>
               <FirstPucPcmcLabs />
             </ProtectedRoute>
-          } 
+          }
         />
 
-        <Route 
-          path="/StudentManagement" 
-          element={
-            <ProtectedRoute requiresAuth={true} requiresRole="student" requiresProfile={true}>
-              <StudentManagement/>
-            </ProtectedRoute>
-          } 
-        />
-        
-        <Route 
-          path="/labs/2nd-puc-pcmc" 
+        <Route
+          path="/labs/2nd-puc-pcmc"
           element={
             <ProtectedRoute requiresAuth={true} requiresRole="student" requiresProfile={true}>
               <SecondPucPcmcLabs />
             </ProtectedRoute>
-          } 
+          }
         />
+
+        {/* Ohm's Law Experiment Route */}
         <Route
           path="/ohms-law-experiment"
           element={
@@ -259,9 +271,30 @@ const AppContent = () => {
             </ProtectedRoute>
           }
         />
-        {/* Default Route with better logic */}
-        <Route 
-          path="/" 
+
+        {/* Magnetic Hysteresis Experiment Route */}
+        <Route
+          path="/magnetic-hysteresis-experiment"
+          element={
+            <ProtectedRoute requiresAuth={true} requiresRole="student" requiresProfile={true}>
+              <MagneticHysteresisExperiment />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Clipping and Clamping Experiment Route */}
+        <Route
+          path="/clipping-clamping-experiment"
+          element={
+            <ProtectedRoute requiresAuth={true} requiresRole="student" requiresProfile={true}>
+              <ClippingClampingExperiment />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Default Route: Handles initial load and redirects based on auth/role/profile status */}
+        <Route
+          path="/"
           element={
             loading ? (
               <div className="min-h-screen bg-black flex items-center justify-center">
@@ -283,17 +316,17 @@ const AppContent = () => {
             ) : (
               <Navigate to="/dashboard" replace />
             )
-          } 
+          }
         />
-        
-        {/* Catch all route */}
-        <Route 
-          path="*" 
+
+        {/* Catch-all Route: For any undefined paths (404 Not Found) */}
+        <Route
+          path="*"
           element={
             <div className="min-h-screen bg-black flex items-center justify-center">
               <div className="text-center text-white">
                 <h2 className="text-xl mb-4">Page Not Found</h2>
-                <button 
+                <button
                   onClick={() => window.location.href = '/'}
                   className="px-4 py-2 bg-blue-600 text-white rounded"
                 >
@@ -301,13 +334,14 @@ const AppContent = () => {
                 </button>
               </div>
             </div>
-          } 
+          }
         />
       </Routes>
     </>
   );
 };
 
+// Main App component wraps the routing with AuthProvider
 function App() {
   return (
     <AuthProvider>
