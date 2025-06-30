@@ -263,6 +263,21 @@ const AppContent = () => {
         />
 
         {/* Ohm's Law Experiment Route */}
+       
+       
+        
+       
+
+        <Route 
+          path="/StudentManagement" 
+          element={
+            <ProtectedRoute requiresAuth={true} requiresRole="student" requiresProfile={true}>
+              <StudentManagement/>
+            </ProtectedRoute>
+          } 
+        />
+        
+        
         <Route
           path="/ohms-law-experiment"
           element={
