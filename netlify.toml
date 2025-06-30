@@ -1,0 +1,10 @@
+# netlify.toml (at the root of your repo)
+[build]
+  base = "Virtual-pov"
+  publish = "dist"
+  command = "npm run build"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
