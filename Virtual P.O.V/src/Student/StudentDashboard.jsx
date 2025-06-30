@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../AuthContext'; // Adjust the path to your AuthContext file
+import { doc, updateDoc, getDoc } from 'firebase/firestore';
+import { db } from '../firebase'; // Adjust the path to your firebase config
 
 const LabExperiments = () => {
   const { userProfile } = useAuth(); // Get userProfile from AuthContext
@@ -15,85 +17,7 @@ const LabExperiments = () => {
     totalExperiments: 0,
     pendingAssignments: 0,
   });
-
-  // Static experiment data (unchanged)
-   const experimentData = {
-    physics: [
-      {
-        id: 'ohms-law',
-        title: 'Ohm\'s Law Experiment',
-        description: 'Verify Ohm\'s law and understand the relationship between voltage, current, and resistance.',
-        duration: '45 minutes',
-        difficulty: 'Beginner',
-        status: 'available',
-        route: '/ohms-law-experiment'
-      },
-      {
-        id: 'clipping-clamping',
-        title: 'Clipping & Clamping Circuits',
-        description: 'Study the behavior of diode clipping and clamping circuits.',
-        duration: '60 minutes',
-        difficulty: 'Intermediate',
-        status: 'available',
-        route: '/clipping-clamping-experiment'
-      },
-      {
-        id: 'magnetic-hysteresis',
-        title: 'Magnetic Hysteresis',
-        description: 'Analyze the magnetic hysteresis loop of ferromagnetic materials.',
-        duration: '50 minutes',
-        difficulty: 'Advanced',
-        status: 'available',
-        route: '/magnetic-hysteresis-experiment'
-      }
-    ],
-    chemistry: [
-      {
-        id: 'acid-base-titration',
-        title: 'Acid-Base Titration',
-        description: 'Determine the concentration of an unknown acid or base solution.',
-        duration: '45 minutes',
-        difficulty: 'Beginner',
-        status: 'under-development'
-      },
-      {
-        id: 'crystallization',
-        title: 'Crystallization Process',
-        description: 'Study the crystallization of salts from aqueous solutions.',
-        duration: '40 minutes',
-        difficulty: 'Beginner',
-        status: 'under-development'
-      }
-    ],
-    biology: [
-      {
-        id: 'microscopy',
-        title: 'Microscopy Techniques',
-        description: 'Learn to use compound microscope and observe cellular structures.',
-        duration: '50 minutes',
-        difficulty: 'Beginner',
-        status: 'under-development'
-      },
-      {
-        id: 'photosynthesis',
-        title: 'Photosynthesis Experiment',
-        description: 'Demonstrate oxygen evolution during photosynthesis.',
-        duration: '60 minutes',
-        difficulty: 'Intermediate',
-        status: 'under-development'
-      }
-    ],
-    mathematics: [
-      {
-        id: 'statistics-analysis',
-        title: 'Statistical Data Analysis',
-        description: 'Analyze real-world data using statistical methods.',
-        duration: '45 minutes',
-        difficulty: 'Intermediate',
-        status: 'under-development'
-      }
-    ]
-  };
+  const [userLabData, setUserLabData] = useState(null);
 
   const subjects = [
     { id: 'all', name: 'All Subjects', icon: '📚' },
@@ -103,35 +27,128 @@ const LabExperiments = () => {
     { id: 'mathematics', name: 'Mathematics', icon: '📊' },
   ];
 
+  // Fetch user data from Firestore
   useEffect(() => {
-    // Simulate loading and calculate stats
-    setTimeout(() => {
-      const totalExps = Object.values(experimentData).flat().length;
-      setUserStats({
-        completedExperiments: 2, // Replace with actual data from Firebase if available
-        totalExperiments: totalExps,
-        pendingAssignments: userProfile?.Pending_Assignments || 0,
-      });
-      setLoading(false);
-    }, 1000);
-  }, [userProfile]); // Depend on userProfile
+    const fetchUserData = async () => {
+      if (!userProfile?.uid) return;
+
+      try {
+        const userDocRef = doc(db, 'users', userProfile.uid);
+        const userDoc = await getDoc(userDocRef);
+        
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          setUserLabData(userData);
+          
+          // Calculate stats from the database
+          const labExperiments = userData.LabExperiment?.experiments || {};
+          let totalCompleted = 0;
+          let totalExperiments = 0;
+          
+          Object.values(labExperiments).forEach(subjectExps => {
+            if (Array.isArray(subjectExps)) {
+              totalExperiments += subjectExps.length;
+              totalCompleted += subjectExps.filter(exp => exp.completed).length;
+            }
+          });
+
+          setUserStats({
+            completedExperiments:  totalCompleted,
+            totalExperiments: totalExperiments,
+            pendingAssignments: userData.Pending_Assignments || 0,
+          });
+          
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+        setLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, [userProfile]);
 
   const getFilteredExperiments = () => {
+    if (!userLabData?.LabExperiment?.experiments) return [];
+
+    const experiments = userLabData.LabExperiment.experiments;
+    
     if (selectedSubject === 'all') {
-      return Object.entries(experimentData).flatMap(([subject, exps]) =>
-        exps.map((exp) => ({ ...exp, subject }))
+      return Object.entries(experiments).flatMap(([subject, exps]) =>
+        Array.isArray(exps) ? exps.map((exp) => ({ ...exp, subject })) : []
       );
     }
-    return experimentData[selectedSubject]?.map((exp) => ({ ...exp, subject: selectedSubject })) || [];
+    
+    const subjectExps = experiments[selectedSubject];
+    return Array.isArray(subjectExps) ? subjectExps.map((exp) => ({ ...exp, subject: selectedSubject })) : [];
   };
 
-  const handleExperimentClick = (experiment) => {
-    if (experiment.route && experiment.status === 'available') {
+  const handleExperimentClick = async (experiment) => {
+    if (experiment.status === 'available' && experiment.route) {
+      // Update enrolled labs in Firestore
+      await updateEnrolledLabs(experiment);
       navigate(experiment.route, { state: { experiment } });
-    } else {
+    } 
+    else if (experiment.status === 'completed') {
+      // Redirect to completed experiment details
+     navigate(experiment.route, { state: { experiment } });
+
+    }
+
+    else {
       alert(`${experiment.title} is under development`);
     }
   };
+
+const updateEnrolledLabs = async (experiment) => {
+  if (!userProfile?.uid) return;
+
+  try {
+    const userDocRef = doc(db, 'users', userProfile.uid);
+    const userDoc = await getDoc(userDocRef);
+    
+    if (userDoc.exists()) {
+      const userData = userDoc.data();
+      let currentEnrolledLabs = userData.Enrolled_labs || [];
+      
+      // Convert to array if it's an object/map
+      if (!Array.isArray(currentEnrolledLabs) && typeof currentEnrolledLabs === 'object') {
+        currentEnrolledLabs = Object.values(currentEnrolledLabs);
+      }
+      
+      // Ensure it's an array
+      if (!Array.isArray(currentEnrolledLabs)) {
+        currentEnrolledLabs = [];
+      }
+      
+      // Check if experiment is already enrolled
+      const isAlreadyEnrolled = currentEnrolledLabs.some(lab => 
+        lab.id === experiment.id && lab.subject === experiment.subject
+      );
+      
+      if (!isAlreadyEnrolled) {
+        const enrollmentData = {
+          id: experiment.id,
+          title: experiment.title,
+          subject: experiment.subject,
+          enrolledAt: new Date(),
+          status: 'enrolled'
+        };
+        
+        const updatedEnrolledLabs = [...currentEnrolledLabs, enrollmentData];
+        
+        await updateDoc(userDocRef, {
+          Enrolled_labs: updatedEnrolledLabs
+        });
+        
+        console.log('Successfully enrolled in lab:', experiment.title);
+      }
+    }
+  } catch (error) {
+    console.error('Error updating enrolled labs:', error);
+  }
+};
 
   const getDifficultyColor = (difficulty) => {
     switch (difficulty) {
@@ -160,6 +177,43 @@ const LabExperiments = () => {
         return 'from-gray-500 to-gray-600';
     }
   };
+
+const getExperimentStatus = (experiment) => {
+  // Check if experiment is completed
+  if (experiment.completed) {
+    return { status: 'completed', text: '✅ Completed', color: 'bg-green-100 text-green-800' };
+  }
+  
+  // Check if experiment is enrolled
+  // Handle both array and object formats for Enrolled_labs
+  let isEnrolled = false;
+  
+  if (userLabData?.Enrolled_labs) {
+    // If Enrolled_labs is an array
+    if (Array.isArray(userLabData.Enrolled_labs)) {
+      isEnrolled = userLabData.Enrolled_labs.some(lab => 
+        lab.id === experiment.id && lab.subject === experiment.subject
+      );
+    } 
+    // If Enrolled_labs is an object/map
+    else if (typeof userLabData.Enrolled_labs === 'object') {
+      isEnrolled = Object.values(userLabData.Enrolled_labs).some(lab => 
+        lab.id === experiment.id && lab.subject === experiment.subject
+      );
+    }
+  }
+  
+  if (isEnrolled) {
+    return { status: 'enrolled', text: '📚 Enrolled', color: 'bg-blue-100 text-blue-800' };
+  }
+  
+  // Check if experiment is available or under development
+  if (experiment.status === 'available') {
+    return { status: 'available', text: '🟢 Available', color: 'bg-green-100 text-green-800' };
+  } else {
+    return { status: 'under-development', text: '🚧 Under Development', color: 'bg-yellow-100 text-yellow-800' };
+  }
+};
 
   const ChatbotWindow = () => (
     <div className={`fixed bottom-4 right-4 z-50 transition-all duration-300 ${isChatbotOpen ? 'w-80 h-96' : 'w-16 h-16'}`}>
@@ -225,7 +279,7 @@ const LabExperiments = () => {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">
               <button
-                onClick={() => navigate('/student-dashboard')} // Navigate to student dashboard
+                onClick={() => navigate('/student-dashboard')}
                 className="p-2 rounded-lg hover:bg-white/60 transition-colors"
               >
                 <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -271,7 +325,7 @@ const LabExperiments = () => {
                 <div className="hidden md:flex items-center space-x-4">
                   <div className="text-right">
                     <div className="text-sm text-gray-500">Class</div>
-                    <div className="font-semibold text-gray-800">{userProfile?.class || 'N/A'}</div>
+                    <div className="font-semibold text-gray-800">{userProfile?.class || userLabData?.class || 'N/A'}</div>
                   </div>
                   <div className="w-16 h-16 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center text-white text-xl font-bold">
                     {userProfile?.name?.charAt(0) || 'S'}
@@ -295,7 +349,7 @@ const LabExperiments = () => {
                 </div>
                 <div className="bg-white/60 backdrop-blur rounded-xl p-4 text-center">
                   <div className="text-2xl font-bold text-purple-600">
-                    {Math.round((userStats.completedExperiments / userStats.totalExperiments) * 100) || 0}%
+                    {userStats.totalExperiments > 0 ? Math.round((userStats.completedExperiments / userStats.totalExperiments) * 100) : 0}%
                   </div>
                   <div className="text-sm text-gray-600">Progress</div>
                 </div>
@@ -306,18 +360,44 @@ const LabExperiments = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                   <div>
                     <span className="text-gray-500">Email:</span>
-                    <span className="ml-2 font-medium text-gray-800">{userProfile?.email || 'N/A'}</span>
+                    <span className="ml-2 font-medium text-gray-800">{userProfile?.email || userLabData?.email || 'N/A'}</span>
                   </div>
                   <div>
                     <span className="text-gray-500">Phone:</span>
-                    <span className="ml-2 font-medium text-gray-800">{userProfile?.phoneNumber || 'Not provided'}</span>
+                    <span className="ml-2 font-medium text-gray-800">{userProfile?.phoneNumber || userLabData?.phoneNumber || 'Not provided'}</span>
                   </div>
                   <div>
-                    <span className="text-gray-500">Date of Birth:</span>
-                    <span className="ml-2 font-medium text-gray-800">{userProfile?.dateOfBirth || 'N/A'}</span>
+                    <span className="text-gray-500">USN:</span>
+                    <span className="ml-2 font-medium text-gray-800">{userLabData?.usn || 'N/A'}</span>
                   </div>
                 </div>
               </div>
+
+              {/* Enrolled Labs Summary */}
+              {userLabData?.Enrolled_labs && (
+  (() => {
+    // Convert to array for display
+    let enrolledLabsArray = [];
+    if (Array.isArray(userLabData.Enrolled_labs)) {
+      enrolledLabsArray = userLabData.Enrolled_labs;
+    } else if (typeof userLabData.Enrolled_labs === 'object') {
+      enrolledLabsArray = Object.values(userLabData.Enrolled_labs);
+    }
+    
+    return enrolledLabsArray.length > 0 ? (
+      <div className="mt-6 p-4 bg-white/40 backdrop-blur rounded-xl">
+        <h4 className="text-sm font-semibold text-gray-700 mb-2">Recently Enrolled Labs</h4>
+        <div className="flex flex-wrap gap-2">
+          {enrolledLabsArray.slice(-5).map((lab, index) => (
+            <span key={index} className="px-3 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+              {lab.title || lab.id}
+            </span>
+          ))}
+        </div>
+      </div>
+    ) : null;
+  })()
+)}
             </div>
           </div>
         </div>
@@ -346,59 +426,65 @@ const LabExperiments = () => {
 
         {/* Experiments Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {getFilteredExperiments().map((experiment) => (
-            <div
-              key={experiment.id}
-              className="bg-white/70 backdrop-blur-md rounded-2xl shadow-xl border border-white/30 overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer"
-              onClick={() => handleExperimentClick(experiment)}
-            >
-              <div className={`h-2 bg-gradient-to-r ${getSubjectColor(experiment.subject)}`}></div>
-              <div className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className={`w-12 h-12 bg-gradient-to-r ${getSubjectColor(experiment.subject)} rounded-xl flex items-center justify-center shadow-lg`}>
-                    <svg className="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                    </svg>
+          {getFilteredExperiments().map((experiment) => {
+            const experimentStatus = getExperimentStatus(experiment);
+            return (
+              <div
+                key={experiment.id}
+                className="bg-white/70 backdrop-blur-md rounded-2xl shadow-xl border border-white/30 overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer"
+                onClick={() => handleExperimentClick(experiment)}
+              >
+                <div className={`h-2 bg-gradient-to-r ${getSubjectColor(experiment.subject)}`}></div>
+                <div className="p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className={`w-12 h-12 bg-gradient-to-r ${getSubjectColor(experiment.subject)} rounded-xl flex items-center justify-center shadow-lg`}>
+                      <svg className="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                      </svg>
+                    </div>
+                    <span className={`text-xs font-medium px-2 py-1 rounded-full ${experimentStatus.color}`}>
+                      {experimentStatus.text}
+                    </span>
                   </div>
-                  {experiment.status === 'under-development' ? (
-                    <span className="bg-yellow-100 text-yellow-800 text-xs font-medium px-2 py-1 rounded-full">
-                      🚧 Under Development
+
+                  <h3 className="text-xl font-bold text-gray-800 mb-2">{experiment.title}</h3>
+                  <p className="text-gray-600 text-sm mb-4 line-clamp-2">{experiment.description}</p>
+
+                  <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
+                    <span className="flex items-center">
+                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      {experiment.duration}
                     </span>
-                  ) : (
-                    <span className="bg-green-100 text-green-800 text-xs font-medium px-2 py-1 rounded-full">
-                      ✅ Available
+                    <span className={`px-2 py-1 rounded-full ${getDifficultyColor(experiment.difficulty)}`}>
+                      {experiment.difficulty}
                     </span>
-                  )}
+                  </div>
+
+                  <button
+                    className={`w-full py-2 px-4 rounded-xl font-medium transition-all duration-200 transform hover:-translate-y-0.5 ${
+                      experiment.completed
+                        ? 'bg-green-500 text-white cursor-default'
+                        : experiment.status === 'available'
+                        ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:shadow-lg'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
+                    disabled={experiment.status!=="available" }
+                  >
+                    {experiment.completed
+                      ? 'Completed ✅'
+                      : experiment.status === 'available'
+                      ? experimentStatus.status === 'enrolled'
+                        ? 'Continue Experiment →'
+                        : 'Start Experiment →'
+                      : 'Coming Soon'
+                    }
+                  </button>
                 </div>
-
-                <h3 className="text-xl font-bold text-gray-800 mb-2">{experiment.title}</h3>
-                <p className="text-gray-600 text-sm mb-4 line-clamp-2">{experiment.description}</p>
-
-                <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
-                  <span className="flex items-center">
-                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    {experiment.duration}
-                  </span>
-                  <span className={`px-2 py-1 rounded-full ${getDifficultyColor(experiment.difficulty)}`}>
-                    {experiment.difficulty}
-                  </span>
-                </div>
-
-                <button
-                  className={`w-full py-2 px-4 rounded-xl font-medium transition-all duration-200 transform hover:-translate-y-0.5 ${
-                    experiment.status === 'available'
-                      ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:shadow-lg'
-                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  }`}
-                  disabled={experiment.status !== 'available'}
-                >
-                  {experiment.status === 'available' ? 'Start Experiment →' : 'Coming Soon'}
-                </button>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {getFilteredExperiments().length === 0 && (

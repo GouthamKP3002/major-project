@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Chart from 'chart.js/auto';
+import { db, auth } from '../firebase';
+import { doc, updateDoc, increment, getDoc } from 'firebase/firestore';
+import { useAuthState } from 'react-firebase-hooks/auth';
 
 // --- Helper Functions (Same as before) ---
 const generateSineWave = (amplitude, frequency, phase, numPoints, duration) => {
@@ -170,8 +173,123 @@ const ClippingClampingExperiment = () => {
   const [numPoints] = useState(500); // Fixed for smooth waveform
   const [duration] = useState(2); // Fixed duration for waveform
 
+const [user, loading, error] = useAuthState(auth);
+const [experimentCompleted, setExperimentCompleted] = useState(false);
+const experimentId = "clipping-clamping"; // Current experiment ID
+const subject = "physics"; // Current subject
+
+const markExperimentCompleted = async () => {
+  if (!user || experimentCompleted) return;
+  
+  try {
+    const userDocRef = doc(db, 'users', user.uid);
+    const userDoc = await getDoc(userDocRef);
+    
+    if (!userDoc.exists()) {
+      console.error('User document not found');
+      return;
+    }
+    
+    const userData = userDoc.data();
+    
+    // Check main LabExperiment experiments
+    const mainExperiments = userData.LabExperiment?.experiments?.[subject] || [];
+    const mainExpIndex = mainExperiments.findIndex(exp => exp.id === experimentId);
+    
+    if (mainExpIndex === -1) {
+      console.error('Experiment not found in main experiments');
+      return;
+    }
+    
+    // Check if already completed to avoid duplication
+    if (mainExperiments[mainExpIndex].completed) {
+      console.log('Experiment already completed');
+      setExperimentCompleted(true);
+      return;
+    }
+    
+    // Update main experiment
+    const updatedMainExperiments = [...mainExperiments];
+    updatedMainExperiments[mainExpIndex] = {
+      ...updatedMainExperiments[mainExpIndex],
+      completed: true,
+      status: "completed"
+    };
+    
+    // Check enrolled experiments
+    const enrolledExperiments = userData.Enrolled_labs?.LabExperiment?.experiments?.[subject] || [];
+    const enrolledExpIndex = enrolledExperiments.findIndex(exp => exp.id === experimentId);
+    
+    let updateData = {
+      [`LabExperiment.experiments.${subject}`]: updatedMainExperiments,
+      totalCompleted: increment(1)
+    };
+    
+    // Update enrolled experiment if exists
+    if (enrolledExpIndex !== -1) {
+      const updatedEnrolledExperiments = [...enrolledExperiments];
+      updatedEnrolledExperiments[enrolledExpIndex] = {
+        ...updatedEnrolledExperiments[enrolledExpIndex],
+        completed: true,
+        status: "completed"
+      };
+      updateData[`Enrolled_labs.LabExperiment.experiments.${subject}`] = updatedEnrolledExperiments;
+    }
+    
+    await updateDoc(userDocRef, updateData);
+    setExperimentCompleted(true);
+    console.log('Experiment marked as completed!');
+    
+  } catch (error) {
+    console.error('Error updating experiment status:', error);
+  }
+};
+
+
+
+// Add this useEffect to check if experiment is already completed
+useEffect(() => {
+  const checkExperimentStatus = async () => {
+    if (!user) return;
+    
+    try {
+      const userDocRef = doc(db, 'users', user.uid);
+      const userDoc = await getDoc(userDocRef);
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        const mainExperiments = userData.LabExperiment?.experiments?.[subject] || [];
+        const experiment = mainExperiments.find(exp => exp.id === experimentId);
+        
+        if (experiment && experiment.completed) {
+          setExperimentCompleted(true);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking experiment status:', error);
+    }
+  };
+  
+  checkExperimentStatus();
+}, [user]);
+
   // Simulation Type State (replaces individual enable/disable for a "selected circuit")
   const [selectedCircuit, setSelectedCircuit] = useState('none'); // 'none', 'clipping', 'clamping', 'both'
+
+// Complete after user has experimented for a while
+useEffect(() => {
+  let timer;
+  if (selectedCircuit !== 'none' && !experimentCompleted) {
+    timer = setTimeout(async () => {
+      await markExperimentCompleted();
+      // alert('🎉 Congratulations! You have completed the Clipping & Clamping Circuits experiment!');
+    }, 30000); // Complete after 30 seconds of interaction
+  }
+  
+  return () => {
+    if (timer) clearTimeout(timer);
+  };
+}, [selectedCircuit, experimentCompleted]);
 
   // Clipping Parameters (used when selectedCircuit is 'clipping' or 'both')
   const [clipType, setClipType] = useState('both'); // Default to 'both' for symmetry with circuit diagram

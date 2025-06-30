@@ -9,10 +9,7 @@ import StudentDashboard from './Student/StudentDashboard';
 import TeacherDashboard from './Teacher/TeacherDashboard';
 import StudentManagement from './Teacher/StudentManagment';
 // Import your lab components
-import FirstPucPcmbLabs from './LabPages/FirstPucPcmbLabs';
-import SecondPucPcmbLabs from './LabPages/SecondPucPcmbLabs';
-import FirstPucPcmcLabs from './LabPages/FirstPucPcmcLabs';
-import SecondPucPcmcLabs from './LabPages/SecondPucPcmcLabs';
+
 import OhmsLawExperiment from './Student/ohms-law-experiment'; // Ohm's Law Experiment
 import MagneticHysteresisExperiment from './Student/magnetic-hysteresis-experiment'; // Import the Magnetic Hysteresis Experiment component
 import ClippingClampingExperiment from './Student/clipping-clamping-experiment'; // NEW: Import ClippingClampingExperiment
@@ -224,43 +221,7 @@ const AppContent = () => {
         />
 
 
-        {/* Student Lab Routes */}
-        {/* All lab pages require student role and profile completion */}
-        <Route
-          path="/labs/1st-puc-pcmb"
-          element={
-            <ProtectedRoute requiresAuth={true} requiresRole="student" requiresProfile={true}>
-              <FirstPucPcmbLabs />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/labs/2nd-puc-pcmb"
-          element={
-            <ProtectedRoute requiresAuth={true} requiresRole="student" requiresProfile={true}>
-              <SecondPucPcmbLabs />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/labs/1st-puc-pcmc"
-          element={
-            <ProtectedRoute requiresAuth={true} requiresRole="student" requiresProfile={true}>
-              <FirstPucPcmcLabs />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/labs/2nd-puc-pcmc"
-          element={
-            <ProtectedRoute requiresAuth={true} requiresRole="student" requiresProfile={true}>
-              <SecondPucPcmcLabs />
-            </ProtectedRoute>
-          }
-        />
+     
 
         {/* Ohm's Law Experiment Route */}
        

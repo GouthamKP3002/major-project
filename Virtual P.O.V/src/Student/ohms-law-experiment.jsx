@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Printer, Download, RotateCcw, Zap, AlertCircle } from 'lucide-react';
+import { db, auth } from '../firebase'; // Adjust path as needed
+import { doc, updateDoc, arrayUnion, increment,getDoc  } from 'firebase/firestore';
+import { useAuthState } from 'react-firebase-hooks/auth'; 
+
+
 
 // Main App component for the Ohm's Law Interactive Lab
 const App = () => {
@@ -23,6 +28,91 @@ const App = () => {
     resistor: null,
     voltmeter: null // Voltmeter will auto-place when resistor is placed
   });
+
+const [user, loading, error] = useAuthState(auth);
+const [experimentCompleted, setExperimentCompleted] = useState(false);
+const experimentId = "ohms-law";
+
+// Add this useEffect after your existing state declarations
+useEffect(() => {
+  const fetchExperimentStatus = async () => {
+    if (!user) return;
+    
+    try {
+      const userDocRef = doc(db, 'users', user.uid);
+      const userDoc = await getDoc(userDocRef);
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        const physicsExperiments = userData.LabExperiment?.experiments?.physics || [];
+        const ohmsLawExp = physicsExperiments.find(exp => exp.id === "ohms-law");
+        
+        if (ohmsLawExp && ohmsLawExp.completed) {
+          setExperimentCompleted(true);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching experiment status:', error);
+    }
+  };
+
+  fetchExperimentStatus();
+}, [user]);
+
+const markExperimentCompleted = async () => {
+  if (!user || experimentCompleted) return;
+
+  try {
+    const userDocRef = doc(db, 'users', user.uid);
+    const userDoc = await getDoc(userDocRef);
+    
+    if (!userDoc.exists()) return;
+    
+    const userData = userDoc.data();
+    const physicsExperiments = userData.LabExperiment?.experiments?.physics || [];
+    const enrolledPhysicsExperiments = userData.Enrolled_labs?.LabExperiment?.experiments?.physics || [];
+    
+    // Check if already completed in main experiments
+    const existingExp = physicsExperiments.find(exp => exp.id === "ohms-law");
+    const isAlreadyEnrolled = enrolledPhysicsExperiments.some(exp => exp.id === "ohms-law" && exp.completed);
+    
+    if (existingExp?.completed) {
+      setExperimentCompleted(true);
+      return;
+    }
+
+    // Update main LabExperiment physics array
+    const updatedPhysicsExperiments = physicsExperiments.map(exp => 
+      exp.id === "ohms-law" ? { ...exp, completed: true, status: "completed" } : exp
+    );
+
+    const updateData = {
+      'LabExperiment.experiments.physics': updatedPhysicsExperiments
+    };
+
+    // Only add to enrolled labs and increment count if not already enrolled as completed
+    if (!isAlreadyEnrolled) {
+      updateData['Enrolled_labs.LabExperiment.experiments.physics'] = arrayUnion({
+        completed: true,
+        description: "Verify Ohm's law and understand the relationship between voltage, current, and resistance.",
+        difficulty: "Beginner",
+        duration: "45 minutes",
+        id: "ohms-law",
+        route: "/ohms-law-experiment",
+        status: "completed",
+        title: "Ohm's Law Experiment"
+      });
+      updateData.totalCompleted = increment(1);
+    }
+    
+    await updateDoc(userDocRef, updateData);
+    setExperimentCompleted(true);
+    console.log('Experiment marked as completed!');
+    
+  } catch (error) {
+    console.error('Error updating experiment status:', error);
+  }
+};
 
   const [draggedComponent, setDraggedComponent] = useState(null);
   const [isCircuitComplete, setIsCircuitComplete] = useState(false);
@@ -229,25 +319,32 @@ const App = () => {
     setIsSwitchClosed(prev => !prev);
   };
 
-  const addToTable = () => {
-    if (errorMessage || !isSwitchClosed || !isCircuitComplete) {
-      alert('Cannot add to table. Ensure the circuit is assembled, switch is closed, and there are no errors.');
-      return;
-    }
-    if (calculatedCurrent === 0 && measuredVoltageAcrossResistor === 0 && rheostatResistance > 0 && circuitVoltage > 0) {
-      alert('Cannot add to table. Current and Voltage are zero. Adjust rheostat to get readings.');
-      return;
-    }
+const addToTable = async () => {
+  if (errorMessage || !isSwitchClosed || !isCircuitComplete) {
+    alert('Cannot add to table. Ensure the circuit is assembled, switch is closed, and there are no errors.');
+    return;
+  }
+  if (calculatedCurrent === 0 && measuredVoltageAcrossResistor === 0 && rheostatResistance > 0 && circuitVoltage > 0) {
+    alert('Cannot add to table. Current and Voltage are zero. Adjust rheostat to get readings.');
+    return;
+  }
 
-    const newDataPoint = {
-      voltage: parseFloat(measuredVoltageAcrossResistor).toFixed(2),
-      current: parseFloat(calculatedCurrent).toFixed(4),
-      rheostatResistance: parseFloat(rheostatResistance).toFixed(2),
-      totalVoltage: parseFloat(circuitVoltage).toFixed(2),
-      fixedResistance: fixedResistorValue,
-    };
-    setTableData(prevData => [newDataPoint, ...prevData]);
+  const newDataPoint = {
+    voltage: parseFloat(measuredVoltageAcrossResistor).toFixed(2),
+    current: parseFloat(calculatedCurrent).toFixed(4),
+    rheostatResistance: parseFloat(rheostatResistance).toFixed(2),
+    totalVoltage: parseFloat(circuitVoltage).toFixed(2),
+    fixedResistance: fixedResistorValue,
   };
+  
+  setTableData(prevData => [newDataPoint, ...prevData]);
+
+  // TRIGGER COMPLETION - Mark experiment as completed when first data point is added
+  if (tableData.length +1>= 3 && !experimentCompleted) {
+    await markExperimentCompleted();
+    // alert('🎉 Congratulations! You have completed the Ohm\'s Law experiment!');
+  }
+};
 
   const clearTable = () => {
     setTableData([]);

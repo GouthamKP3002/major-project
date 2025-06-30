@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Printer, Download, RotateCcw, Zap, AlertCircle, Magnet } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { db, auth } from '../firebase'; // Adjust path as needed
+import { doc, updateDoc, increment, getDoc } from 'firebase/firestore';
+import { useAuthState } from 'react-firebase-hooks/auth';
 
 // --- Material Data for Hysteresis Simulation (Integrated) ---
 const materials = {
@@ -48,6 +51,93 @@ const MagneticHysteresisExperiment = () => {
   const [isPoweredOn, setIsPoweredOn] = useState(false);
 
   const circuitRef = useRef(null); // Reference to the SVG container
+
+  const [user, loading, error] = useAuthState(auth);
+const [experimentCompleted, setExperimentCompleted] = useState(false);
+const experimentId = "magnetic-hysteresis"; // Current experiment ID
+
+const markExperimentCompleted = async () => {
+  if (!user || experimentCompleted) return;
+  
+  try {
+    const userDocRef = doc(db, 'users', user.uid);
+    const userDoc = await getDoc(userDocRef);
+    
+    if (!userDoc.exists()) {
+      console.error('User document not found');
+      return;
+    }
+    
+    const userData = userDoc.data();
+    const enrolledLabs = userData.Enrolled_labs || {};
+    const labExperiment = enrolledLabs.LabExperiment || {};
+    const experiments = labExperiment.experiments || {};
+    const physicsExps = experiments.physics || [];
+    
+    // Check if experiment is already completed to avoid duplicates
+    const expIndex = physicsExps.findIndex(exp => exp.id === experimentId);
+    if (expIndex !== -1 && physicsExps[expIndex].completed) {
+      console.log('Experiment already completed');
+      return;
+    }
+    
+    // Update the specific experiment in physics array
+    const updatedPhysicsExps = [...physicsExps];
+    if (expIndex !== -1) {
+      // Update existing experiment
+      updatedPhysicsExps[expIndex] = {
+        ...updatedPhysicsExps[expIndex],
+        completed: true,
+        status: "completed"
+      };
+    } else {
+      // Add new experiment entry
+      updatedPhysicsExps.push({
+        completed: true,
+        description: "Analyze the magnetic hysteresis loop of ferromagnetic materials.",
+        difficulty: "Advanced",
+        duration: "50 minutes",
+        id: experimentId,
+        route: "/magnetic-hysteresis-experiment",
+        status: "completed",
+        title: "Magnetic Hysteresis"
+      });
+    }
+    
+    // Also update the main LabExperiment.experiments.physics array
+    const mainExperiments = userData.LabExperiment?.experiments?.physics || [];
+    const mainExpIndex = mainExperiments.findIndex(exp => exp.id === experimentId);
+    const updatedMainExps = [...mainExperiments];
+    
+    if (mainExpIndex !== -1) {
+      updatedMainExps[mainExpIndex] = {
+        ...updatedMainExps[mainExpIndex],
+        completed: true,
+        status: "completed"
+      };
+    }
+    
+    // Prepare update object
+    const updateData = {
+      'Enrolled_labs.LabExperiment.experiments.physics': updatedPhysicsExps,
+      'LabExperiment.experiments.physics': updatedMainExps
+    };
+    
+    // Only increment totalCompleted if experiment wasn't already completed
+    if (expIndex === -1 || !physicsExps[expIndex].completed) {
+      updateData.totalCompleted = increment(1);
+      updateData['Enrolled_labs.totalCompleted'] = increment(1);
+    }
+    
+    await updateDoc(userDocRef, updateData);
+    
+    setExperimentCompleted(true);
+    console.log('Experiment marked as completed!');
+    
+  } catch (error) {
+    console.error('Error updating experiment status:', error);
+  }
+};
 
   // Define target slots (x, y, width, height, color) for where components should be dropped
   const componentSlots = {
@@ -122,21 +212,26 @@ const MagneticHysteresisExperiment = () => {
   };
 
   // Toggle power switch
-  const togglePower = () => {
-    if (!isCircuitComplete) {
-      setErrorMessage('Circuit is incomplete! Place all components before powering on.');
-      return;
-    }
-    const newPowerState = !isPoweredOn;
-    setIsPoweredOn(newPowerState);
-    setErrorMessage(''); // Clear previous error messages on toggle
+const togglePower = async () => {
+  if (!isCircuitComplete) {
+    setErrorMessage('Circuit is incomplete! Place all components before powering on.');
+    return;
+  }
+  const newPowerState = !isPoweredOn;
+  setIsPoweredOn(newPowerState);
+  setErrorMessage('');
 
-    if (newPowerState) { // If turning power ON, start the simulation
-      startSimulation();
-    } else { // If turning power OFF, reset the simulation visualization
-      resetSimulationVisuals();
+  if (newPowerState) {
+    startSimulation();
+    // TRIGGER COMPLETION - Mark experiment as completed when powered on
+    if (!experimentCompleted) {
+      await markExperimentCompleted();
+      alert('🎉 Congratulations! You have completed the Magnetic Hysteresis experiment!');
     }
-  };
+  } else {
+    resetSimulationVisuals();
+  }
+};
 
   // Print functionality (Placeholder)
   const handlePrint = () => {

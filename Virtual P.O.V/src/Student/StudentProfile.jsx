@@ -14,6 +14,93 @@ const StudentProfile = () => {
     dateOfBirth: '',
   });
 
+  // Lab experiments data structure
+  const experimentData = {
+    physics: [
+      {
+        id: 'ohms-law',
+        title: 'Ohm\'s Law Experiment',
+        description: 'Verify Ohm\'s law and understand the relationship between voltage, current, and resistance.',
+        duration: '45 minutes',
+        difficulty: 'Beginner',
+        status: 'available',
+        route: '/ohms-law-experiment',
+        completed: false
+      },
+      {
+        id: 'clipping-clamping',
+        title: 'Clipping & Clamping Circuits',
+        description: 'Study the behavior of diode clipping and clamping circuits.',
+        duration: '60 minutes',
+        difficulty: 'Intermediate',
+        status: 'available',
+        route: '/clipping-clamping-experiment',
+        completed: false
+      },
+      {
+        id: 'magnetic-hysteresis',
+        title: 'Magnetic Hysteresis',
+        description: 'Analyze the magnetic hysteresis loop of ferromagnetic materials.',
+        duration: '50 minutes',
+        difficulty: 'Advanced',
+        status: 'available',
+        route: '/magnetic-hysteresis-experiment',
+        completed: false
+      }
+    ],
+    chemistry: [
+      {
+        id: 'acid-base-titration',
+        title: 'Acid-Base Titration',
+        description: 'Determine the concentration of an unknown acid or base solution.',
+        duration: '45 minutes',
+        difficulty: 'Beginner',
+        status: 'under-development',
+        completed: false
+      },
+      {
+        id: 'crystallization',
+        title: 'Crystallization Process',
+        description: 'Study the crystallization of salts from aqueous solutions.',
+        duration: '40 minutes',
+        difficulty: 'Beginner',
+        status: 'under-development',
+        completed: false
+      }
+    ],
+    biology: [
+      {
+        id: 'microscopy',
+        title: 'Microscopy Techniques',
+        description: 'Learn to use compound microscope and observe cellular structures.',
+        duration: '50 minutes',
+        difficulty: 'Beginner',
+        status: 'under-development',
+        completed: false
+      },
+      {
+        id: 'photosynthesis',
+        title: 'Photosynthesis Experiment',
+        description: 'Demonstrate oxygen evolution during photosynthesis.',
+        duration: '60 minutes',
+        difficulty: 'Intermediate',
+        status: 'under-development',
+        completed: false
+      }
+    ],
+    mathematics: [
+      {
+        id: 'statistics-analysis',
+        title: 'Statistical Data Analysis',
+        description: 'Analyze real-world data using statistical methods.',
+        duration: '45 minutes',
+        difficulty: 'Intermediate',
+        status: 'under-development',
+        completed: false
+      }
+    ]
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -34,8 +121,12 @@ const StudentProfile = () => {
         photoURL: user.photoURL,
         createdAt: new Date(),
         uid: user.uid,
-        Enrolled_labs: [], // Initialize as empty array
-        Pending_Assignments: 0 // Initialize as 0
+        Enrolled_labs: {}, // Initialize as empty array
+        Pending_Assignments: 0, // Initialize as 0
+        LabExperiment: {
+          totalCompleted: 0,
+          experiments: experimentData
+        }
       };
 
       await setDoc(doc(db, 'users', user.uid), profileData);
